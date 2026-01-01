@@ -12,8 +12,6 @@ from typing import List, Optional
 # Handle both package and direct execution imports
 try:
     from .extract_claude_logs import ClaudeConversationExtractor
-    from .realtime_search import RealTimeSearch, create_smart_searcher
-    from .search_conversations import ConversationSearcher
     from .constants import (
         SESSION_DISPLAY_LIMIT,
         PROJECT_LENGTH,
@@ -24,8 +22,6 @@ try:
 except ImportError:
     # Fallback for direct execution or when not installed as package
     from extract_claude_logs import ClaudeConversationExtractor
-    from realtime_search import RealTimeSearch, create_smart_searcher
-    from search_conversations import ConversationSearcher
     from constants import (
         SESSION_DISPLAY_LIMIT,
         PROJECT_LENGTH,
@@ -41,7 +37,6 @@ class InteractiveUI:
     def __init__(self, output_dir: Optional[str] = None):
         self.output_dir = output_dir
         self.extractor = ClaudeConversationExtractor(output_dir)
-        self.searcher = ConversationSearcher()
         self.sessions: List[Path] = []
         self.terminal_width = shutil.get_terminal_size().columns
 
@@ -154,7 +149,6 @@ class InteractiveUI:
         print("  A. Extract ALL conversations")
         print("  R. Extract 5 most RECENT")
         print("  S. SELECT specific conversations (e.g., 1,3,5)")
-        print("  F. SEARCH conversations (real-time search)")
         print("  Q. QUIT")
 
         while True:
@@ -177,11 +171,6 @@ class InteractiveUI:
                         print("❌ Invalid selection. Please use valid numbers.")
                 except ValueError:
                     print("❌ Invalid format. Use comma-separated numbers.")
-            elif choice == "F":
-                # Search functionality
-                search_results = self.search_conversations()
-                if search_results:
-                    return search_results
             else:
                 print("❌ Invalid choice. Please try again.")
 
@@ -193,34 +182,6 @@ class InteractiveUI:
         bar = "█" * filled + "░" * (bar_width - filled)
 
         print(f"\r[{bar}] {current}/{total} {message}", end="", flush=True)
-
-    def search_conversations(self) -> List[int]:
-        """Launch real-time search interface"""
-        # Enhance searcher with smart search
-        smart_searcher = create_smart_searcher(self.searcher)
-
-        # Create and run real-time search
-        rts = RealTimeSearch(smart_searcher, self.extractor)
-        selected_file = rts.run()
-
-        if selected_file:
-            # View the selected conversation
-            self.extractor.display_conversation(Path(selected_file))
-
-            # Ask if user wants to extract it
-            extract_choice = input("\n📤 Extract this conversation? (y/N): ").strip().lower()
-            if extract_choice == "y":
-                try:
-                    index = self.sessions.index(Path(selected_file))
-                    return [index]
-                except ValueError:
-                    print("\n❌ Error: Selected file not found in sessions list")
-                    input("\nPress Enter to continue...")
-
-            # Return empty to go back to menu
-            return []
-
-        return []
 
     def extract_conversations(self, indices: List[int], output_dir: Path) -> int:
         """Extract selected conversations with progress display"""

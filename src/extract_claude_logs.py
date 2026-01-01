@@ -1056,41 +1056,6 @@ def launch_interactive():
         except ImportError:
             from interactive_ui import main as interactive_main
         interactive_main()
-    # Check if 'search' was passed as an argument
-    elif len(sys.argv) > 1 and sys.argv[1] == "search":
-        # Launch real-time search with viewing capability
-        try:
-            from .realtime_search import RealTimeSearch, create_smart_searcher
-            from .search_conversations import ConversationSearcher
-        except ImportError:
-            from realtime_search import RealTimeSearch, create_smart_searcher
-            from search_conversations import ConversationSearcher
-
-        # Initialize components
-        extractor = ClaudeConversationExtractor()
-        searcher = ConversationSearcher()
-        smart_searcher = create_smart_searcher(searcher)
-
-        # Run search
-        rts = RealTimeSearch(smart_searcher, extractor)
-        selected_file = rts.run()
-
-        if selected_file:
-            # View the selected conversation
-            extractor.display_conversation(selected_file)
-
-            # Offer to extract
-            try:
-                extract_choice = input("\n📤 Extract this conversation? (y/N): ").strip().lower()
-                if extract_choice == "y":
-                    conversation = extractor.extract_conversation(selected_file)
-                    if conversation:
-                        session_id = selected_file.stem
-                        project_name = selected_file.parent.name
-                        output = extractor.save_as_markdown(conversation, session_id, project_name)
-                        print(f"✅ Saved: {output.name}")
-            except (EOFError, KeyboardInterrupt):
-                print("\n👋 Cancelled")
     else:
         # If other arguments are provided, run the normal CLI
         main()

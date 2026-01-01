@@ -4,7 +4,7 @@
 
 ## 🎮 Two Ways to Use
 
-- **`claude-start`** - Interactive UI with ASCII art logo, real-time search, and menu-driven interface (recommended)
+- **`claude-start`** - Interactive UI with ASCII art logo and menu-driven interface (recommended)
 - **`claude-extract`** - Plain CLI for command-line operations and scripting
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -36,13 +36,13 @@
 This is the **ONLY tool that exports Claude Code conversations**:
 - ✅ **Finds Claude Code logs** automatically in ~/.claude/projects
 - ✅ **Extracts Claude conversations** to clean Markdown files
-- ✅ **Searches Claude chat history** with real-time results
+- ✅ **Searches Claude chat history** with simple CLI search
 - ✅ **Backs up all Claude sessions** with one command
 - ✅ **Works on Windows, macOS, Linux** - wherever Claude Code runs
 
 ## ✨ Features for Claude Code Users
 
-- **🔍 Real-Time Search**: Search Claude conversations as you type - no flags needed
+- **🔍 CLI Search**: Search Claude conversations with `claude-search <term>`
 - **📝 Claude JSONL to Markdown**: Clean export without terminal artifacts
 - **⚡ Find Any Chat**: Search by content, date, or conversation name
 - **📦 Bulk Export**: Extract all Claude Code conversations at once

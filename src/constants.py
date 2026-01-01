@@ -46,7 +46,6 @@ MAX_CONTENT_LENGTH = 200
 
 SEARCH_MAX_RESULTS_DEFAULT = 30
 DEFAULT_MAX_RESULTS = 20
-MAX_RESULTS_DISPLAYED = 10
 DEFAULT_CONTEXT_SIZE = 150
 
 # =============================================================================
@@ -55,21 +54,8 @@ DEFAULT_CONTEXT_SIZE = 150
 
 SESSION_DISPLAY_LIMIT = 20
 PROJECT_LENGTH = 30
-PROJECT_NAME_MAX_LENGTH = 20
 PROGRESS_BAR_WIDTH = 40
 RECENT_SESSIONS_LIMIT = 5
-HEADER_LINES_COUNT = 4
-SEARCH_BOX_OFFSET = 3
-
-# =============================================================================
-# Timing Constants
-# =============================================================================
-
-TERMINAL_UPDATE_RATE = 0.1
-GET_KEY_SLEEP_TIME = 0.01
-DEBOUNCE_DELAY_MS = 300
-SEARCH_WORKER_POLL_INTERVAL = 0.05
-TIMEOUT_WORKER_THREAD = 0.5
 
 # =============================================================================
 # Search Relevance Constants

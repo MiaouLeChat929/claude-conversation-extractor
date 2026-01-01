@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple CLI search for Claude conversations without terminal control.
+Simple CLI search for Claude conversations.
 This is used when running `claude-search` from the command line.
 """
 
@@ -9,12 +9,10 @@ import sys
 # Handle both package and direct execution imports
 try:
     from .search_conversations import ConversationSearcher
-    from .realtime_search import create_smart_searcher
     from .extract_claude_logs import ClaudeConversationExtractor
 except ImportError:
     # Fallback for direct execution or when not installed as package
     from search_conversations import ConversationSearcher
-    from realtime_search import create_smart_searcher
     from extract_claude_logs import ClaudeConversationExtractor
 
 
@@ -41,10 +39,9 @@ def main():
 
     # Initialize searcher
     searcher = ConversationSearcher()
-    smart_searcher = create_smart_searcher(searcher)
 
     # Perform search
-    results = smart_searcher.search(search_term, max_results=20)
+    results = searcher.search(search_term, max_results=20)
 
     if results:
         print(f"\n✅ Found {len(results)} results across conversations:\n")
@@ -86,7 +83,7 @@ def main():
             print("\n" + "=" * 60)
             print("Options:")
             print("  V. VIEW a conversation")
-            print("  E. EXTRACT all conversations")
+            print("  E. EXTRACT all matched conversations")
             print("  Q. QUIT")
 
             try:
@@ -117,7 +114,7 @@ def main():
                             print(f"  {i}. {sid[:8]}...")
 
                         try:
-                            view_num = int(input("\nEnter number (1-{}): ".format(len(sessions))))
+                            view_num = int(input(f"\nEnter number (1-{len(sessions)}): "))
                             if 1 <= view_num <= len(session_paths):
                                 extractor.display_conversation(session_paths[view_num - 1])
 
