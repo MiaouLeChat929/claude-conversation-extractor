@@ -1151,9 +1151,12 @@ class ClaudeConversationExtractor:
                         description=description,
                         tags=tags,
                     )
-                    success += 1
-                    msg_count = len(conversation)
-                    print(f"✅ {success}/{total}: {output_path.name} " f"({msg_count} messages)")
+                    if output_path:
+                        success += 1
+                        msg_count = len(conversation)
+                        print(f"✅ {success}/{total}: {output_path.name} " f"({msg_count} messages)")
+                    else:
+                        print(f"❌ Failed to save session {idx + 1}")
                 else:
                     print(f"⏭️  Skipped session {idx + 1} (no conversation)")
             else:
