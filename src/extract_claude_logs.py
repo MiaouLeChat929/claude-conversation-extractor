@@ -138,7 +138,7 @@ class ClaudeConversationExtractor:
                                 conversation.append(
                                     {
                                         "role": "tool_use",
-                                        "content": f"🔧 Tool: {tool_name}\nInput: {json.dumps(tool_input, indent=INDENT_NUMBER)}",
+                                        "content": f"🔧 Tool: {tool_name}\nInput: {json.dumps(tool_input, indent=INDENT_NUMBER, ensure_ascii=False)}",
                                         "timestamp": entry.get("timestamp", ""),
                                     }
                                 )
@@ -199,7 +199,7 @@ class ClaudeConversationExtractor:
                         tool_name = item.get("name", "unknown")
                         tool_input = item.get("input", {})
                         text_parts.append(f"\n🔧 Using tool: {tool_name}")
-                        text_parts.append(f"Input: {json.dumps(tool_input, indent=INDENT_NUMBER)}\n")
+                        text_parts.append(f"Input: {json.dumps(tool_input, indent=INDENT_NUMBER, ensure_ascii=False)}\n")
             return "\n".join(text_parts)
         else:
             return str(content)
