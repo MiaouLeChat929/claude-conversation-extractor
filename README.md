@@ -49,7 +49,7 @@ This is the **ONLY tool that exports Claude Code conversations**:
 - **🎯 Zero Config**: Just run `claude-extract` - we find everything automatically
 - **🚀 No Dependencies**: Pure Python - no external packages required
 - **🖥️ Cross-Platform**: Export Claude Code logs on any OS
-- **📊 97% Test Coverage**: Reliable extraction you can trust
+- **📊 Tested**: Core extraction functionality tested and reliable
 
 ## 📦 Install Claude Conversation Extractor
 

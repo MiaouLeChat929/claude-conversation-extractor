@@ -29,34 +29,61 @@ except ImportError:
     print("Note: Install spacy for enhanced semantic search capabilities")
     print("      pip install spacy && python -m spacy download en_core_web_sm")
 
-
-# Constants
-MAJOR_SEPARATOR_WIDTH = 60
-DEFAULT_MAX_RESULTS = 20
-MAX_CONTENT_LENGTH = 200
-DEFAULT_CONTEXT_SIZE  = 150
-DEFAULT_MAX_TOPICS = 5
-CONTENT_LENGTH_PROCESSING = 10
-MAX_NOUN_PHRASES_LENGTH = 3
-INDENT_NUMBER = 2
-MIN_TOPIC_PHRASE_COUNT = 1
-
-# Other constants for relevance or similarity
-RELEVANCE_THRESHOLD = 0.1
-MIN_RELEVANCE_COMPARED = 1.0
-MATCH_FACTOR_FOR_RELEVANCE = 0.2
-MATCH_BONUS = 0.5
-MIN_RELEVANCE_MULTIPLE_OCCURRENCES = 0.3
-MATCH_FACTOR_MULTIPLE_OCCURRENCES = 0.1
-MIN_RELEVANCE_OVERLAP = 0.4
-MATCH_FACTOR_OVERLAP = 0.4
-PROXIMITY_BONUS = 0.1
-MIN_TOKENS_FOR_PROXIMITY_BONUS = 1
-PROXIMITY_WINDOW_MULTIPLIER = 2
-ADDITIONAL_BOOST_EXACT_MATCH = 0.3
-MATCH_CONTEXT_STEP = 100
-SEMANTIC_SIMILARITY_THRESHOLD = 0.3
-CONTEXT_FALLBACK_MULTIPLIER = 2
+# Import shared constants
+try:
+    from .constants import (
+        MAJOR_SEPARATOR_WIDTH,
+        DEFAULT_MAX_RESULTS,
+        MAX_CONTENT_LENGTH,
+        DEFAULT_CONTEXT_SIZE,
+        DEFAULT_MAX_TOPICS,
+        CONTENT_LENGTH_PROCESSING,
+        MAX_NOUN_PHRASES_LENGTH,
+        INDENT_NUMBER,
+        MIN_TOPIC_PHRASE_COUNT,
+        RELEVANCE_THRESHOLD,
+        MIN_RELEVANCE_COMPARED,
+        MATCH_FACTOR_FOR_RELEVANCE,
+        MATCH_BONUS,
+        MIN_RELEVANCE_MULTIPLE_OCCURRENCES,
+        MATCH_FACTOR_MULTIPLE_OCCURRENCES,
+        MIN_RELEVANCE_OVERLAP,
+        MATCH_FACTOR_OVERLAP,
+        PROXIMITY_BONUS,
+        MIN_TOKENS_FOR_PROXIMITY_BONUS,
+        PROXIMITY_WINDOW_MULTIPLIER,
+        ADDITIONAL_BOOST_EXACT_MATCH,
+        MATCH_CONTEXT_STEP,
+        SEMANTIC_SIMILARITY_THRESHOLD,
+        CONTEXT_FALLBACK_MULTIPLIER,
+    )
+except ImportError:
+    from constants import (
+        MAJOR_SEPARATOR_WIDTH,
+        DEFAULT_MAX_RESULTS,
+        MAX_CONTENT_LENGTH,
+        DEFAULT_CONTEXT_SIZE,
+        DEFAULT_MAX_TOPICS,
+        CONTENT_LENGTH_PROCESSING,
+        MAX_NOUN_PHRASES_LENGTH,
+        INDENT_NUMBER,
+        MIN_TOPIC_PHRASE_COUNT,
+        RELEVANCE_THRESHOLD,
+        MIN_RELEVANCE_COMPARED,
+        MATCH_FACTOR_FOR_RELEVANCE,
+        MATCH_BONUS,
+        MIN_RELEVANCE_MULTIPLE_OCCURRENCES,
+        MATCH_FACTOR_MULTIPLE_OCCURRENCES,
+        MIN_RELEVANCE_OVERLAP,
+        MATCH_FACTOR_OVERLAP,
+        PROXIMITY_BONUS,
+        MIN_TOKENS_FOR_PROXIMITY_BONUS,
+        PROXIMITY_WINDOW_MULTIPLIER,
+        ADDITIONAL_BOOST_EXACT_MATCH,
+        MATCH_CONTEXT_STEP,
+        SEMANTIC_SIMILARITY_THRESHOLD,
+        CONTEXT_FALLBACK_MULTIPLIER,
+    )
 
 
 @dataclass
@@ -207,19 +234,13 @@ class ConversationSearcher:
 
         for jsonl_file in jsonl_files:
             if mode == "regex":
-                results = self._search_regex(
-                    jsonl_file, query, speaker_filter, case_sensitive
-                )
+                results = self._search_regex(jsonl_file, query, speaker_filter, case_sensitive)
             elif mode == "exact":
-                results = self._search_exact(
-                    jsonl_file, query, speaker_filter, case_sensitive
-                )
+                results = self._search_exact(jsonl_file, query, speaker_filter, case_sensitive)
             elif mode == "semantic" and self.nlp:
                 results = self._search_semantic(jsonl_file, query, speaker_filter)
             else:  # smart mode - combines multiple approaches
-                results = self._search_smart(
-                    jsonl_file, query, speaker_filter, case_sensitive
-                )
+                results = self._search_smart(jsonl_file, query, speaker_filter, case_sensitive)
 
             all_results.extend(results)
 
@@ -283,9 +304,7 @@ class ConversationSearcher:
 
                         # Extract message based on entry type
                         if entry.get("type") in ["user", "assistant"]:
-                            speaker = (
-                                "human" if entry["type"] == "user" else "assistant"
-                            )
+                            speaker = "human" if entry["type"] == "user" else "assistant"
 
                             # Apply speaker filter
                             if speaker_filter and speaker != speaker_filter:
@@ -303,9 +322,7 @@ class ConversationSearcher:
 
                             if relevance > RELEVANCE_THRESHOLD:  # Threshold for inclusion
                                 # Extract context
-                                context = self._extract_context(
-                                    content, query, case_sensitive
-                                )
+                                context = self._extract_context(content, query, case_sensitive)
 
                                 # Parse timestamp if present
                                 timestamp = None
@@ -360,9 +377,7 @@ class ConversationSearcher:
                         entry = json.loads(line.strip())
 
                         if entry.get("type") in ["user", "assistant"]:
-                            speaker = (
-                                "human" if entry["type"] == "user" else "assistant"
-                            )
+                            speaker = "human" if entry["type"] == "user" else "assistant"
 
                             if speaker_filter and speaker != speaker_filter:
                                 continue
@@ -371,18 +386,16 @@ class ConversationSearcher:
                             if not content:
                                 continue
 
-                            search_content = (
-                                content if case_sensitive else content.lower()
-                            )
+                            search_content = content if case_sensitive else content.lower()
 
                             if search_query in search_content:
                                 # Calculate relevance based on match frequency
                                 match_count = search_content.count(search_query)
-                                relevance = min(MIN_RELEVANCE_COMPARED, match_count * MATCH_FACTOR_FOR_RELEVANCE)
-
-                                context = self._extract_context(
-                                    content, query, case_sensitive
+                                relevance = min(
+                                    MIN_RELEVANCE_COMPARED, match_count * MATCH_FACTOR_FOR_RELEVANCE
                                 )
+
+                                context = self._extract_context(content, query, case_sensitive)
 
                                 # Parse timestamp if present
                                 timestamp = None
@@ -443,9 +456,7 @@ class ConversationSearcher:
                         entry = json.loads(line.strip())
 
                         if entry.get("type") in ["user", "assistant"]:
-                            speaker = (
-                                "human" if entry["type"] == "user" else "assistant"
-                            )
+                            speaker = "human" if entry["type"] == "user" else "assistant"
 
                             if speaker_filter and speaker != speaker_filter:
                                 continue
@@ -458,7 +469,10 @@ class ConversationSearcher:
 
                             if matches:
                                 # Calculate relevance based on match quality
-                                relevance = min(MIN_RELEVANCE_COMPARED, len(matches) * MATCH_FACTOR_FOR_RELEVANCE)
+                                relevance = min(
+                                    MIN_RELEVANCE_COMPARED,
+                                    len(matches) * MATCH_FACTOR_FOR_RELEVANCE,
+                                )
 
                                 # Get context around first match
                                 first_match = matches[0]
@@ -513,9 +527,7 @@ class ConversationSearcher:
 
         # Process query with spaCy
         query_doc = self.nlp(query.lower())
-        query_tokens = [
-            token for token in query_doc if not token.is_stop and token.is_alpha
-        ]
+        query_tokens = [token for token in query_doc if not token.is_stop and token.is_alpha]
 
         try:
             with open(jsonl_file, "r", encoding="utf-8") as f:
@@ -526,9 +538,7 @@ class ConversationSearcher:
                         entry = json.loads(line.strip())
 
                         if entry.get("type") in ["user", "assistant"]:
-                            speaker = (
-                                "human" if entry["type"] == "user" else "assistant"
-                            )
+                            speaker = "human" if entry["type"] == "user" else "assistant"
 
                             if speaker_filter and speaker != speaker_filter:
                                 continue
@@ -545,7 +555,9 @@ class ConversationSearcher:
                                 query_doc, query_tokens, content_doc
                             )
 
-                            if similarity > SEMANTIC_SIMILARITY_THRESHOLD:  # Threshold for semantic matches
+                            if (
+                                similarity > SEMANTIC_SIMILARITY_THRESHOLD
+                            ):  # Threshold for semantic matches
                                 context = self._extract_context(content, query, False)
 
                                 # Parse timestamp if present
@@ -635,13 +647,17 @@ class ConversationSearcher:
             relevance += MATCH_BONUS
             # Additional bonus for multiple occurrences
             count = content_lower.count(query_lower)
-            relevance += min(MIN_RELEVANCE_MULTIPLE_OCCURRENCES, count * MATCH_FACTOR_MULTIPLE_OCCURRENCES)
+            relevance += min(
+                MIN_RELEVANCE_MULTIPLE_OCCURRENCES, count * MATCH_FACTOR_MULTIPLE_OCCURRENCES
+            )
 
         # Token overlap
         content_tokens = set(content_lower.split()) - self.stop_words
         if query_tokens and content_tokens:
             overlap = len(query_tokens & content_tokens)
-            relevance += min(MIN_RELEVANCE_OVERLAP, overlap / len(query_tokens) * MATCH_FACTOR_OVERLAP)
+            relevance += min(
+                MIN_RELEVANCE_OVERLAP, overlap / len(query_tokens) * MATCH_FACTOR_OVERLAP
+            )
 
         # Proximity bonus - are query terms near each other?
         if len(query_tokens) > MIN_TOKENS_FOR_PROXIMITY_BONUS:
@@ -655,9 +671,7 @@ class ConversationSearcher:
 
         return min(MIN_RELEVANCE_COMPARED, relevance)
 
-    def _calculate_semantic_similarity(
-        self, query_doc, query_tokens, content_doc
-    ) -> float:
+    def _calculate_semantic_similarity(self, query_doc, query_tokens, content_doc) -> float:
         """Calculate semantic similarity using spaCy."""
         if not query_tokens:
             return 0.0
@@ -683,12 +697,18 @@ class ConversationSearcher:
 
         # Boost for exact phrase matches
         if query_doc.text.lower() in content_doc.text.lower():
-            base_similarity = min(MIN_RELEVANCE_COMPARED, base_similarity + ADDITIONAL_BOOST_EXACT_MATCH)
+            base_similarity = min(
+                MIN_RELEVANCE_COMPARED, base_similarity + ADDITIONAL_BOOST_EXACT_MATCH
+            )
 
         return base_similarity
 
     def _extract_context(
-        self, content: str, query: str, case_sensitive: bool, context_size: int = DEFAULT_CONTEXT_SIZE
+        self,
+        content: str,
+        query: str,
+        case_sensitive: bool,
+        context_size: int = DEFAULT_CONTEXT_SIZE,
     ) -> str:
         """Extract context around the match for display."""
         if not case_sensitive:
@@ -765,7 +785,9 @@ class ConversationSearcher:
             return []
 
         # Process with spaCy
-        full_text = " ".join(all_content[:CONTENT_LENGTH_PROCESSING])  # Limit to avoid processing too much
+        full_text = " ".join(
+            all_content[:CONTENT_LENGTH_PROCESSING]
+        )  # Limit to avoid processing too much
         doc = self.nlp(full_text)
 
         # Extract noun phrases as topics
@@ -783,7 +805,11 @@ class ConversationSearcher:
         sorted_phrases = sorted(phrase_counts.items(), key=lambda x: x[1], reverse=True)
 
         # Return top topics
-        return [phrase for phrase, count in sorted_phrases[:max_topics] if count > MIN_TOPIC_PHRASE_COUNT]
+        return [
+            phrase
+            for phrase, count in sorted_phrases[:max_topics]
+            if count > MIN_TOPIC_PHRASE_COUNT
+        ]
 
 
 def create_search_index(search_dir: Path, output_file: Path) -> None:
@@ -818,9 +844,7 @@ def create_search_index(search_dir: Path, output_file: Path) -> None:
                         entry = json.loads(line.strip())
                         if entry.get("type") in ["user", "assistant"]:
                             metadata["message_count"] += 1
-                            speaker = (
-                                "human" if entry["type"] == "user" else "assistant"
-                            )
+                            speaker = "human" if entry["type"] == "user" else "assistant"
                             metadata["speakers"].add(speaker)
 
                             if metadata["first_message"] is None:

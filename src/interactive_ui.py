@@ -14,19 +14,25 @@ try:
     from .extract_claude_logs import ClaudeConversationExtractor
     from .realtime_search import RealTimeSearch, create_smart_searcher
     from .search_conversations import ConversationSearcher
+    from .constants import (
+        SESSION_DISPLAY_LIMIT,
+        PROJECT_LENGTH,
+        MAJOR_SEPARATOR_WIDTH,
+        PROGRESS_BAR_WIDTH,
+        RECENT_SESSIONS_LIMIT,
+    )
 except ImportError:
     # Fallback for direct execution or when not installed as package
     from extract_claude_logs import ClaudeConversationExtractor
     from realtime_search import RealTimeSearch, create_smart_searcher
     from search_conversations import ConversationSearcher
-
-
-# Constants
-SESSION_DISPLAY_LIMIT = 20
-PROJECT_LENGTH = 30
-MAJOR_SEPARATOR_WIDTH = 60
-PROGRESS_BAR_WIDTH = 40
-RECENT_SESSIONS_LIMIT = 5
+    from constants import (
+        SESSION_DISPLAY_LIMIT,
+        PROJECT_LENGTH,
+        MAJOR_SEPARATOR_WIDTH,
+        PROGRESS_BAR_WIDTH,
+        RECENT_SESSIONS_LIMIT,
+    )
 
 
 class InteractiveUI:
@@ -128,13 +134,17 @@ class InteractiveUI:
         print(f"\n✅ Found {len(self.sessions)} conversations!\n")
 
         # Display sessions
-        for i, session_path in enumerate(self.sessions[:SESSION_DISPLAY_LIMIT], 1):  # Show max SESSION_DISPLAY_LIMIT
+        for i, session_path in enumerate(
+            self.sessions[:SESSION_DISPLAY_LIMIT], 1
+        ):  # Show max SESSION_DISPLAY_LIMIT
             project = session_path.parent.name
             modified = datetime.fromtimestamp(session_path.stat().st_mtime)
             size_kb = session_path.stat().st_size / 1024
 
             date_str = modified.strftime("%Y-%m-%d %H:%M")
-            print(f"  {i:2d}. [{date_str}] {project[:PROJECT_LENGTH]:<{PROJECT_LENGTH}} ({size_kb:.1f} KB)")
+            print(
+                f"  {i:2d}. [{date_str}] {project[:PROJECT_LENGTH]:<{PROJECT_LENGTH}} ({size_kb:.1f} KB)"
+            )
 
         if len(self.sessions) > SESSION_DISPLAY_LIMIT:
             print(f"\n  ... and {len(self.sessions) - SESSION_DISPLAY_LIMIT} more conversations")
@@ -196,17 +206,17 @@ class InteractiveUI:
         if selected_file:
             # View the selected conversation
             self.extractor.display_conversation(Path(selected_file))
-            
+
             # Ask if user wants to extract it
             extract_choice = input("\n📤 Extract this conversation? (y/N): ").strip().lower()
-            if extract_choice == 'y':
+            if extract_choice == "y":
                 try:
                     index = self.sessions.index(Path(selected_file))
                     return [index]
                 except ValueError:
                     print("\n❌ Error: Selected file not found in sessions list")
                     input("\nPress Enter to continue...")
-            
+
             # Return empty to go back to menu
             return []
 
@@ -220,13 +230,9 @@ class InteractiveUI:
         self.extractor.output_dir = output_dir
 
         # Use the extractor's method
-        success_count, total_count = self.extractor.extract_multiple(
-            self.sessions, indices
-        )
+        success_count, total_count = self.extractor.extract_multiple(self.sessions, indices)
 
-        print(
-            f"\n\n✅ Successfully extracted {success_count}/{total_count} conversations!"
-        )
+        print(f"\n\n✅ Successfully extracted {success_count}/{total_count} conversations!")
         return success_count
 
     def open_folder(self, path: Path):
