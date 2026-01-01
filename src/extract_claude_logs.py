@@ -13,7 +13,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 # Configure logging
 logging.basicConfig(
@@ -45,7 +45,7 @@ except ImportError:
 
 try:
     from docx import Document
-    from docx.shared import Inches, Pt, RGBColor
+    from docx.shared import Pt, RGBColor
     from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 
     DOCX_AVAILABLE = True
@@ -68,6 +68,7 @@ try:
         PREVIEW_ERROR_TRUNCATE_LENGTH,
         LIST_SEPARATOR_WIDTH,
         SEARCH_MAX_RESULTS_DEFAULT,
+        RECENT_SESSIONS_LIMIT,
     )
 except ImportError:
     from constants import (
@@ -84,6 +85,7 @@ except ImportError:
         PREVIEW_ERROR_TRUNCATE_LENGTH,
         LIST_SEPARATOR_WIDTH,
         SEARCH_MAX_RESULTS_DEFAULT,
+        RECENT_SESSIONS_LIMIT,
     )
 
 
@@ -201,7 +203,7 @@ class ClaudeConversationExtractor:
                                 conversation.append(
                                     {
                                         "role": "tool_use",
-                                        "content": f"🔧 Tool: {tool_name}\nInput: {json.dumps(tool_input, indent=INDENT_NUMBER, ensure_ascii=False)}",
+                                        "content": f"🔧 Tool: {tool_name}\nInput: {json.dumps(tool_input, indent=INDENT_NUMBER, ensure_ascii=False)}",  # noqa: E501
                                         "timestamp": entry.get("timestamp", ""),
                                     }
                                 )
@@ -242,7 +244,7 @@ class ClaudeConversationExtractor:
         return conversation
 
     def _extract_text_content(
-        self, content: any, detailed: bool = False, include_todo: bool = False
+        self, content: "Any", detailed: bool = False, include_todo: bool = False
     ) -> str:
         """Extract text from various content formats Claude uses.
 
@@ -400,18 +402,18 @@ class ClaudeConversationExtractor:
                 # Format role display
                 if role == "user" or role == "human":
                     print(f"\n{'─' * MINOR_SEPARATOR_WIDTH}")
-                    print(f"👤 HUMAN:")
+                    print("👤 HUMAN:")
                     print(f"{'─' * MINOR_SEPARATOR_WIDTH}")
                 elif role == "assistant":
                     print(f"\n{'─' * MINOR_SEPARATOR_WIDTH}")
-                    print(f"🤖 CLAUDE:")
+                    print("🤖 CLAUDE:")
                     print(f"{'─' * MINOR_SEPARATOR_WIDTH}")
                 elif role == "tool_use":
-                    print(f"\n🔧 TOOL USE:")
+                    print("\n🔧 TOOL USE:")
                 elif role == "tool_result":
-                    print(f"\n📤 TOOL RESULT:")
+                    print("\n📤 TOOL RESULT:")
                 elif role == "system":
-                    print(f"\nℹ️ SYSTEM:")
+                    print("\nℹ️ SYSTEM:")
                 else:
                     print(f"\n{role.upper()}:")
 
@@ -457,6 +459,7 @@ class ClaudeConversationExtractor:
         title: str = "",
         description: str = "",
         tags: List[str] = None,
+        obsidian: bool = False,
     ) -> Optional[Path]:
         """Save conversation as clean markdown file."""
         if not conversation:
@@ -467,8 +470,24 @@ class ClaudeConversationExtractor:
         output_path = self.output_dir / filename
 
         with open(output_path, "w", encoding="utf-8") as f:
+            display_title = title or 'Claude Conversation Log'
+
+            # Add Obsidian frontmatter if requested
+            if obsidian:
+                f.write("---\n")
+                f.write(f"title: {display_title}\n")
+                f.write(f"date: {date_str} {time_str}\n")
+                f.write(f"session_id: {session_id}\n")
+                if project_name:
+                    f.write(f"project: {project_name}\n")
+                if tags:
+                    f.write(f"tags: [{', '.join(tags)}]\n")
+                if description:
+                    f.write(f"description: {description}\n")
+                f.write("---\n\n")
+
             # Use custom title or default
-            f.write(f"# {title or 'Claude Conversation Log'}\n\n")
+            f.write(f"# {display_title}\n\n")
 
             # Add description if provided
             if description:
@@ -670,7 +689,7 @@ class ClaudeConversationExtractor:
         <h1>{display_title}</h1>
         <div class="metadata">
             {"<p class='description'>" + description + "</p>" if description else ""}
-            {"<p class='tags'>" + "".join(f"<span class='tag'>{tag}</span>" for tag in (tags or [])) + "</p>" if tags else ""}
+            {"<p class='tags'>" + "".join(f"<span class='tag'>{tag}</span>" for tag in (tags or [])) + "</p>" if tags else ""}  # noqa: E501
             <p>Session ID: {session_id}</p>
             <p>Date: {date_str} {time_str}</p>
             <p>Messages: {len(conversation)}</p>
@@ -701,7 +720,7 @@ class ClaudeConversationExtractor:
                 f.write(f'    <div class="message {role}">\n')
                 f.write(f'        <div class="role">{role_display}</div>\n')
                 f.write(f'        <div class="content">{content}</div>\n')
-                f.write(f"    </div>\n")
+                f.write("    </div>\n")
 
             f.write("\n</body>\n</html>")
 
@@ -941,6 +960,128 @@ class ClaudeConversationExtractor:
         doc.save(str(output_path))
         return output_path
 
+    def save_as_ipynb(
+        self,
+        conversation: List[Dict[str, str]],
+        session_id: str,
+        project_name: str = "",
+        title: str = "",
+        description: str = "",
+        tags: List[str] = None,
+    ) -> Optional[Path]:
+        """Save conversation as Jupyter Notebook (.ipynb)."""
+        if not conversation:
+            return None
+
+        date_str, time_str = self._parse_timestamp(conversation)
+        filename = self._generate_filename(project_name, date_str, session_id, "ipynb")
+        output_path = self.output_dir / filename
+
+        display_title = title or "Claude Conversation Log"
+
+        # Notebook structure
+        notebook = {
+            "cells": [],
+            "metadata": {
+                "kernelspec": {
+                    "display_name": "Python 3",
+                    "language": "python",
+                    "name": "python3"
+                },
+                "language_info": {
+                    "codemirror_mode": {"name": "ipython", "version": 3},
+                    "file_extension": ".py",
+                    "mimetype": "text/x-python",
+                    "name": "python",
+                    "nbconvert_exporter": "python",
+                    "pygments_lexer": "ipython3",
+                    "version": "3.8.0"
+                }
+            },
+            "nbformat": 4,
+            "nbformat_minor": 4
+        }
+
+        # Add Header Cell
+        header_md = f"# {display_title}\n\n"
+        if description:
+            header_md += f"_{description}_\n\n"
+        if tags:
+            header_md += f"**Tags:** {', '.join(tags)}\n\n"
+        header_md += f"**Session ID:** {session_id}\n\n"
+        header_md += f"**Date:** {date_str} {time_str}\n"
+
+        notebook["cells"].append({
+            "cell_type": "markdown",
+            "metadata": {},
+            "source": [header_md]
+        })
+
+        # Process messages
+        import re
+
+        for msg in conversation:
+            role = msg["role"]
+            content = msg["content"]
+
+            # Create a markdown cell for the role
+            role_icon = "👤" if role == "user" else "🤖" if role == "assistant" else "🔧"
+            role_header = f"### {role_icon} {role.title()}"
+
+            notebook["cells"].append({
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [f"{role_header}\n\n"]
+            })
+
+            # Split content into code blocks and text
+            # Regex to find ```language code ``` blocks
+            parts = re.split(r"(```[\w]*\n[\s\S]*?\n```)", content)
+
+            for part in parts:
+                if not part.strip():
+                    continue
+
+                # Check if it's a code block
+                if part.startswith("```") and part.endswith("```"):
+                    # Extract code and language
+                    lines = part.split("\n")
+                    # First line is ```language
+                    # Last line is ```
+                    code_lines = lines[1:-1]
+                    code = "\n".join(code_lines)
+
+                    # Determine if it's python/runnable
+                    is_python = "python" in lines[0].lower()
+
+                    if is_python:
+                        notebook["cells"].append({
+                            "cell_type": "code",
+                            "execution_count": None,
+                            "metadata": {},
+                            "outputs": [],
+                            "source": [code]
+                        })
+                    else:
+                        # Non-python code block, keep as markdown
+                        notebook["cells"].append({
+                            "cell_type": "markdown",
+                            "metadata": {},
+                            "source": [part]
+                        })
+                else:
+                    # Regular text
+                    notebook["cells"].append({
+                        "cell_type": "markdown",
+                        "metadata": {},
+                        "source": [part]
+                    })
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(notebook, f, indent=INDENT_NUMBER, ensure_ascii=False)
+
+        return output_path
+
     def save_conversation(
         self,
         conversation: List[Dict[str, str]],
@@ -950,6 +1091,7 @@ class ClaudeConversationExtractor:
         title: str = "",
         description: str = "",
         tags: List[str] = None,
+        obsidian: bool = False,
     ) -> Optional[Path]:
         """Save conversation in the specified format.
 
@@ -961,6 +1103,7 @@ class ClaudeConversationExtractor:
             title: Custom title for the document
             description: Description/context for the conversation
             tags: List of tags for organizing the export
+            obsidian: Add YAML frontmatter for Obsidian (Markdown only)
         """
         kwargs = {
             "conversation": conversation,
@@ -972,7 +1115,7 @@ class ClaudeConversationExtractor:
         }
 
         if format == "markdown":
-            return self.save_as_markdown(**kwargs)
+            return self.save_as_markdown(obsidian=obsidian, **kwargs)
         elif format == "json":
             return self.save_as_json(**kwargs)
         elif format == "html":
@@ -981,6 +1124,8 @@ class ClaudeConversationExtractor:
             return self.save_as_pdf(**kwargs)
         elif format == "docx":
             return self.save_as_docx(**kwargs)
+        elif format == "ipynb":
+            return self.save_as_ipynb(**kwargs)
         else:
             logger.error(f"❌ Unsupported format: {format}")
             return None
@@ -1136,6 +1281,7 @@ class ClaudeConversationExtractor:
         title: str = "",
         description: str = "",
         tags: List[str] = None,
+        obsidian: bool = False,
     ) -> Tuple[int, int]:
         """Extract multiple sessions by index.
 
@@ -1148,6 +1294,7 @@ class ClaudeConversationExtractor:
             title: Custom title for exported documents
             description: Description/context for the conversation
             tags: List of tags for organizing exports
+            obsidian: Add YAML frontmatter for Obsidian (Markdown only)
         """
         success = 0
         total = len(indices)
@@ -1169,11 +1316,12 @@ class ClaudeConversationExtractor:
                         title=title,
                         description=description,
                         tags=tags,
+                        obsidian=obsidian,
                     )
                     if output_path:
                         success += 1
                         msg_count = len(conversation)
-                        logger.info(f"✅ {success}/{total}: {output_path.name} " f"({msg_count} messages)")
+                        logger.info(f"✅ {success}/{total}: {output_path.name} ({msg_count} messages)")  # noqa: E501
                     else:
                         logger.error(f"❌ Failed to save session {idx + 1}")
                 else:
@@ -1248,9 +1396,9 @@ Examples:
     # Export format arguments
     parser.add_argument(
         "--format",
-        choices=["markdown", "json", "html", "pdf", "docx"],
+        choices=["markdown", "json", "html", "pdf", "docx", "ipynb"],
         default="markdown",
-        help="Output format for exported conversations (default: markdown). PDF and DOCX require optional dependencies.",
+        help="Output format for exported conversations (default: markdown). PDF and DOCX require optional dependencies.",  # noqa: E501
     )
     parser.add_argument(
         "--detailed",
@@ -1436,21 +1584,28 @@ Examples:
 
         # Limit if not list
         if not args.list and not args.project and len(sessions) > RECENT_SESSIONS_LIMIT:
-             sessions_to_display = sessions[:RECENT_SESSIONS_LIMIT]
+            sessions_to_display = sessions[:RECENT_SESSIONS_LIMIT]
         else:
-             sessions_to_display = sessions[:args.limit] if args.limit else sessions
+            sessions_to_display = sessions[:args.limit] if args.limit else sessions
 
         if not sessions_to_display:
-            logger.warning(f"❌ No Claude sessions found in {extractor.claude_dir}{f' matching project {args.project}' if args.project else ''}")
+            msg = f"❌ No Claude sessions found in {extractor.claude_dir}"
+            if args.project:
+                msg += f" matching project {args.project}"
+            logger.warning(msg)
             if not args.project:
                 logger.info("💡 Make sure you've used Claude Code and have conversations saved.")
             return
 
-        logger.info(f"\n📚 Found {len(sessions)} Claude sessions{f' matching project {args.project}' if args.project else ''}:\n")
+        msg = f"\n📚 Found {len(sessions)} Claude sessions"
+        if args.project:
+            msg += f" matching project {args.project}"
+        msg += ":\n"
+        logger.info(msg)
         logger.info("=" * LIST_SEPARATOR_WIDTH)
 
         for i, session in enumerate(sessions_to_display, 1):
-             # Clean up project name (remove hyphens, make readable)
+            # Clean up project name (remove hyphens, make readable)
             project = session.parent.name.replace("-", " ").strip()
             if project.startswith("Users"):
                 project = (
@@ -1517,6 +1672,7 @@ Examples:
                 title=args.title,
                 description=args.description,
                 tags=tags_list,
+                obsidian=args.obsidian,
             )
             logger.info(f"\n✅ Successfully extracted {success}/{total} sessions")
 
@@ -1528,7 +1684,7 @@ Examples:
             sessions = [s for s in sessions if args.project.lower() in s.parent.name.lower()]
 
         limit = min(args.recent, len(sessions))
-        logger.info(f"\n📤 Extracting {limit} most recent sessions{f' (filtered by project: {args.project})' if args.project else ''} as {args.format.upper()}...")
+        logger.info(f"\n📤 Extracting {limit} most recent sessions{f' (filtered by project: {args.project})' if args.project else ''} as {args.format.upper()}...")  # noqa: E501
         if args.detailed:
             logger.info("📋 Including detailed tool use and system messages")
         if args.todo:
@@ -1546,6 +1702,7 @@ Examples:
             title=args.title,
             description=args.description,
             tags=tags_list,
+            obsidian=args.obsidian,
         )
         logger.info(f"\n✅ Successfully extracted {success}/{total} sessions")
 
@@ -1556,7 +1713,7 @@ Examples:
         if args.project:
             sessions = [s for s in sessions if args.project.lower() in s.parent.name.lower()]
 
-        logger.info(f"\n📤 Extracting all {len(sessions)} sessions{f' (filtered by project: {args.project})' if args.project else ''} as {args.format.upper()}...")
+        logger.info(f"\n📤 Extracting all {len(sessions)} sessions{f' (filtered by project: {args.project})' if args.project else ''} as {args.format.upper()}...")  # noqa: E501
         if args.detailed:
             logger.info("📋 Including detailed tool use and system messages")
         if args.todo:
@@ -1574,6 +1731,7 @@ Examples:
             title=args.title,
             description=args.description,
             tags=tags_list,
+            obsidian=args.obsidian,
         )
         logger.info(f"\n✅ Successfully extracted {success}/{total} sessions")
 
