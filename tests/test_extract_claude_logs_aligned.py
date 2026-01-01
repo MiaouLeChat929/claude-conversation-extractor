@@ -204,6 +204,80 @@ class TestClaudeConversationExtractor(unittest.TestCase):
         self.assertIn("<!DOCTYPE html>", content)
         self.assertIn("Hello", content)
 
+    def test_save_as_pdf_without_dependency(self):
+        """Test that PDF export gracefully handles missing dependency"""
+        # Import to check availability
+        from extract_claude_logs import PDF_AVAILABLE
+
+        conversation = [
+            {"role": "user", "content": "Hello", "timestamp": "2024-01-15T10:00:00Z"},
+        ]
+
+        with patch("builtins.print"):
+            output_path = self.extractor.save_as_pdf(conversation, "test_session")
+
+        if PDF_AVAILABLE:
+            self.assertIsNotNone(output_path)
+            self.assertTrue(output_path.exists())
+            self.assertTrue(output_path.suffix == ".pdf")
+        else:
+            self.assertIsNone(output_path)
+
+    def test_save_as_docx_without_dependency(self):
+        """Test that DOCX export gracefully handles missing dependency"""
+        # Import to check availability
+        from extract_claude_logs import DOCX_AVAILABLE
+
+        conversation = [
+            {"role": "user", "content": "Hello", "timestamp": "2024-01-15T10:00:00Z"},
+        ]
+
+        with patch("builtins.print"):
+            output_path = self.extractor.save_as_docx(conversation, "test_session")
+
+        if DOCX_AVAILABLE:
+            self.assertIsNotNone(output_path)
+            self.assertTrue(output_path.exists())
+            self.assertTrue(output_path.suffix == ".docx")
+        else:
+            self.assertIsNone(output_path)
+
+    def test_save_conversation_pdf_format(self):
+        """Test save_conversation with pdf format"""
+        from extract_claude_logs import PDF_AVAILABLE
+
+        conversation = [
+            {"role": "user", "content": "Hello", "timestamp": "2024-01-15T10:00:00Z"},
+        ]
+
+        with patch("builtins.print"):
+            output_path = self.extractor.save_conversation(
+                conversation, "test_session", format="pdf"
+            )
+
+        if PDF_AVAILABLE:
+            self.assertIsNotNone(output_path)
+        else:
+            self.assertIsNone(output_path)
+
+    def test_save_conversation_docx_format(self):
+        """Test save_conversation with docx format"""
+        from extract_claude_logs import DOCX_AVAILABLE
+
+        conversation = [
+            {"role": "user", "content": "Hello", "timestamp": "2024-01-15T10:00:00Z"},
+        ]
+
+        with patch("builtins.print"):
+            output_path = self.extractor.save_conversation(
+                conversation, "test_session", format="docx"
+            )
+
+        if DOCX_AVAILABLE:
+            self.assertIsNotNone(output_path)
+        else:
+            self.assertIsNone(output_path)
+
     # ==========================================================================
     # Find Sessions Tests
     # ==========================================================================

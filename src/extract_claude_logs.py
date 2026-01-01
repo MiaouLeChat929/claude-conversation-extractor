@@ -13,6 +13,27 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+# Optional dependencies for additional export formats
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+    from reportlab.lib.colors import HexColor
+
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
+
+try:
+    from docx import Document
+    from docx.shared import Inches, Pt, RGBColor
+    from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
+
 # Import shared constants
 try:
     from .constants import (
@@ -576,6 +597,192 @@ class ClaudeConversationExtractor:
 
         return output_path
 
+    def save_as_pdf(
+        self, conversation: List[Dict[str, str]], session_id: str, project_name: str = ""
+    ) -> Optional[Path]:
+        """Save conversation as PDF file.
+
+        Requires: pip install claude-conversation-extractor[pdf]
+        """
+        if not PDF_AVAILABLE:
+            print("❌ PDF export requires reportlab. Install with:")
+            print("   pip install claude-conversation-extractor[pdf]")
+            return None
+
+        if not conversation:
+            return None
+
+        date_str, time_str = self._parse_timestamp(conversation)
+        filename = self._generate_filename(project_name, date_str, session_id, "pdf")
+        output_path = self.output_dir / filename
+
+        # Create PDF document
+        doc = SimpleDocTemplate(
+            str(output_path),
+            pagesize=letter,
+            rightMargin=0.75 * inch,
+            leftMargin=0.75 * inch,
+            topMargin=0.75 * inch,
+            bottomMargin=0.75 * inch,
+        )
+
+        # Define styles
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            "CustomTitle",
+            parent=styles["Heading1"],
+            fontSize=18,
+            spaceAfter=12,
+            textColor=HexColor("#2c3e50"),
+        )
+        meta_style = ParagraphStyle(
+            "Meta",
+            parent=styles["Normal"],
+            fontSize=10,
+            textColor=HexColor("#666666"),
+            spaceAfter=6,
+        )
+        user_style = ParagraphStyle(
+            "User",
+            parent=styles["Heading2"],
+            fontSize=12,
+            textColor=HexColor("#3498db"),
+            spaceBefore=12,
+            spaceAfter=6,
+        )
+        assistant_style = ParagraphStyle(
+            "Assistant",
+            parent=styles["Heading2"],
+            fontSize=12,
+            textColor=HexColor("#2ecc71"),
+            spaceBefore=12,
+            spaceAfter=6,
+        )
+        content_style = ParagraphStyle(
+            "Content",
+            parent=styles["Normal"],
+            fontSize=10,
+            leading=14,
+            spaceAfter=12,
+        )
+
+        # Build story (content)
+        story = []
+
+        # Title
+        story.append(Paragraph("Claude Conversation Log", title_style))
+        story.append(Paragraph(f"Session ID: {session_id}", meta_style))
+        story.append(Paragraph(f"Date: {date_str} {time_str}", meta_style))
+        story.append(Paragraph(f"Messages: {len(conversation)}", meta_style))
+        story.append(Spacer(1, 12))
+        story.append(HRFlowable(width="100%", thickness=1, color=HexColor("#cccccc")))
+        story.append(Spacer(1, 12))
+
+        # Messages
+        for msg in conversation:
+            role = msg["role"]
+            content = msg["content"]
+
+            # Escape special characters for PDF
+            content = content.replace("&", "&amp;")
+            content = content.replace("<", "&lt;")
+            content = content.replace(">", "&gt;")
+            # Replace newlines with <br/> for PDF
+            content = content.replace("\n", "<br/>")
+
+            if role == "user":
+                story.append(Paragraph("👤 User", user_style))
+            elif role == "assistant":
+                story.append(Paragraph("🤖 Claude", assistant_style))
+            elif role == "tool_use":
+                story.append(Paragraph("🔧 Tool Use", user_style))
+            elif role == "tool_result":
+                story.append(Paragraph("📤 Tool Result", user_style))
+            elif role == "system":
+                story.append(Paragraph("ℹ️ System", meta_style))
+            else:
+                story.append(Paragraph(role, user_style))
+
+            story.append(Paragraph(content, content_style))
+            story.append(HRFlowable(width="100%", thickness=0.5, color=HexColor("#eeeeee")))
+
+        doc.build(story)
+        return output_path
+
+    def save_as_docx(
+        self, conversation: List[Dict[str, str]], session_id: str, project_name: str = ""
+    ) -> Optional[Path]:
+        """Save conversation as DOCX file.
+
+        Requires: pip install claude-conversation-extractor[docx]
+        """
+        if not DOCX_AVAILABLE:
+            print("❌ DOCX export requires python-docx. Install with:")
+            print("   pip install claude-conversation-extractor[docx]")
+            return None
+
+        if not conversation:
+            return None
+
+        date_str, time_str = self._parse_timestamp(conversation)
+        filename = self._generate_filename(project_name, date_str, session_id, "docx")
+        output_path = self.output_dir / filename
+
+        # Create document
+        doc = Document()
+
+        # Title
+        title = doc.add_heading("Claude Conversation Log", level=0)
+        title.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+        # Metadata
+        meta = doc.add_paragraph()
+        meta.add_run(f"Session ID: {session_id}\n").bold = True
+        meta.add_run(f"Date: {date_str} {time_str}\n")
+        meta.add_run(f"Messages: {len(conversation)}")
+
+        doc.add_paragraph("_" * 50)
+
+        # Messages
+        for msg in conversation:
+            role = msg["role"]
+            content = msg["content"]
+
+            # Add role heading with appropriate color
+            role_para = doc.add_paragraph()
+            role_run = role_para.add_run()
+
+            if role == "user":
+                role_run.text = "👤 User"
+                role_run.font.color.rgb = RGBColor(52, 152, 219)  # Blue
+            elif role == "assistant":
+                role_run.text = "🤖 Claude"
+                role_run.font.color.rgb = RGBColor(46, 204, 113)  # Green
+            elif role == "tool_use":
+                role_run.text = "🔧 Tool Use"
+                role_run.font.color.rgb = RGBColor(243, 156, 18)  # Orange
+            elif role == "tool_result":
+                role_run.text = "📤 Tool Result"
+                role_run.font.color.rgb = RGBColor(231, 76, 60)  # Red
+            elif role == "system":
+                role_run.text = "ℹ️ System"
+                role_run.font.color.rgb = RGBColor(149, 165, 166)  # Gray
+            else:
+                role_run.text = role
+
+            role_run.bold = True
+            role_run.font.size = Pt(12)
+
+            # Add content
+            content_para = doc.add_paragraph(content)
+            content_para.paragraph_format.space_after = Pt(12)
+
+            # Add separator
+            doc.add_paragraph("─" * 40)
+
+        doc.save(str(output_path))
+        return output_path
+
     def save_conversation(
         self,
         conversation: List[Dict[str, str]],
@@ -588,7 +795,7 @@ class ClaudeConversationExtractor:
         Args:
             conversation: The conversation data
             session_id: Session identifier
-            format: Output format ('markdown', 'json', 'html')
+            format: Output format ('markdown', 'json', 'html', 'pdf', 'docx')
             project_name: Project name to include in filename and content
         """
         if format == "markdown":
@@ -597,6 +804,10 @@ class ClaudeConversationExtractor:
             return self.save_as_json(conversation, session_id, project_name)
         elif format == "html":
             return self.save_as_html(conversation, session_id, project_name)
+        elif format == "pdf":
+            return self.save_as_pdf(conversation, session_id, project_name)
+        elif format == "docx":
+            return self.save_as_docx(conversation, session_id, project_name)
         else:
             print(f"❌ Unsupported format: {format}")
             return None
@@ -797,6 +1008,8 @@ Examples:
   %(prog)s --search-regex "import.*" # Search with regex
   %(prog)s --format json --all       # Export all as JSON
   %(prog)s --format html --extract 1 # Export session 1 as HTML
+  %(prog)s --format pdf --extract 1  # Export as PDF (requires: pip install .[pdf])
+  %(prog)s --format docx --all       # Export as DOCX (requires: pip install .[docx])
   %(prog)s --detailed --extract 1    # Include tool use & system messages
         """,
     )
@@ -842,9 +1055,9 @@ Examples:
     # Export format arguments
     parser.add_argument(
         "--format",
-        choices=["markdown", "json", "html"],
+        choices=["markdown", "json", "html", "pdf", "docx"],
         default="markdown",
-        help="Output format for exported conversations (default: markdown)",
+        help="Output format for exported conversations (default: markdown). PDF and DOCX require optional dependencies.",
     )
     parser.add_argument(
         "--detailed",
