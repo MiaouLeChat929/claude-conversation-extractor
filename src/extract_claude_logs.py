@@ -121,13 +121,14 @@ class ClaudeConversationExtractor:
         return sorted(sessions, key=lambda x: x.stat().st_mtime, reverse=True)
 
     def extract_conversation(
-        self, jsonl_path: Path, detailed: bool = False
+        self, jsonl_path: Path, detailed: bool = False, include_todo: bool = False
     ) -> List[Dict[str, str]]:
         """Extract conversation messages from a JSONL file.
 
         Args:
             jsonl_path: Path to the JSONL file
             detailed: If True, include tool use, MCP responses, and system messages
+            include_todo: If True, include todo lists from planning stages
         """
         conversation = []
 
@@ -158,7 +159,9 @@ class ClaudeConversationExtractor:
                             msg = entry["message"]
                             if isinstance(msg, dict) and msg.get("role") == "assistant":
                                 content = msg.get("content", [])
-                                text = self._extract_text_content(content, detailed=detailed)
+                                text = self._extract_text_content(
+                                    content, detailed=detailed, include_todo=include_todo
+                                )
 
                                 if text and text.strip():
                                     conversation.append(
@@ -219,12 +222,15 @@ class ClaudeConversationExtractor:
 
         return conversation
 
-    def _extract_text_content(self, content, detailed: bool = False) -> str:
+    def _extract_text_content(
+        self, content, detailed: bool = False, include_todo: bool = False
+    ) -> str:
         """Extract text from various content formats Claude uses.
 
         Args:
             content: The content to extract from
             detailed: If True, include tool use blocks and other metadata
+            include_todo: If True, include todo lists from tool use inputs
         """
         if isinstance(content, str):
             return content
@@ -235,14 +241,42 @@ class ClaudeConversationExtractor:
                 if isinstance(item, dict):
                     if item.get("type") == "text":
                         text_parts.append(item.get("text", ""))
-                    elif detailed and item.get("type") == "tool_use":
-                        # Include tool use details in detailed mode
+                    elif item.get("type") == "tool_use":
                         tool_name = item.get("name", "unknown")
                         tool_input = item.get("input", {})
-                        text_parts.append(f"\n🔧 Using tool: {tool_name}")
-                        text_parts.append(
-                            f"Input: {json.dumps(tool_input, indent=INDENT_NUMBER, ensure_ascii=False)}\n"
+
+                        # Check for tasks/todo in input
+                        is_todo = (
+                            "Planner" in tool_name
+                            or "TodoWrite" in tool_name
+                            or "tasks" in tool_input
+                            or "todos" in tool_input
                         )
+
+                        if detailed:
+                            # Include full tool use details in detailed mode
+                            text_parts.append(f"\n🔧 Using tool: {tool_name}")
+                            text_parts.append(
+                                f"Input: {json.dumps(tool_input, indent=INDENT_NUMBER, ensure_ascii=False)}\n"
+                            )
+                        elif include_todo and is_todo:
+                            # Format todo list nicely
+                            tasks = (
+                                tool_input.get("tasks", [])
+                                or tool_input.get("todos", [])
+                                or tool_input.get("todo", [])
+                            )
+                            if isinstance(tasks, list) and tasks:
+                                text_parts.append("\n📋 Todo List:")
+                                for task in tasks:
+                                    if isinstance(task, str):
+                                        text_parts.append(f"  - [ ] {task}")
+                                    elif isinstance(task, dict):
+                                        # Handle structured tasks
+                                        desc = task.get("content", task.get("description", str(task)))
+                                        status = task.get("status", "pending")
+                                        checkbox = "x" if status == "completed" else " "
+                                        text_parts.append(f"  - [{checkbox}] {desc}")
             return "\n".join(text_parts)
         else:
             return str(content)
@@ -1079,6 +1113,7 @@ class ClaudeConversationExtractor:
         indices: List[int],
         format: str = "markdown",
         detailed: bool = False,
+        include_todo: bool = False,
         title: str = "",
         description: str = "",
         tags: List[str] = None,
@@ -1090,6 +1125,7 @@ class ClaudeConversationExtractor:
             indices: Indices to extract
             format: Output format ('markdown', 'json', 'html', 'pdf', 'docx')
             detailed: If True, include tool use and system messages
+            include_todo: If True, include todo lists from planning stages
             title: Custom title for exported documents
             description: Description/context for the conversation
             tags: List of tags for organizing exports
@@ -1102,7 +1138,9 @@ class ClaudeConversationExtractor:
                 session_path = sessions[idx]
                 # Extract project name from session path
                 project_name = session_path.parent.name
-                conversation = self.extract_conversation(session_path, detailed=detailed)
+                conversation = self.extract_conversation(
+                    session_path, detailed=detailed, include_todo=include_todo
+                )
                 if conversation:
                     output_path = self.save_conversation(
                         conversation,
@@ -1216,6 +1254,11 @@ Examples:
         type=str,
         default="",
         help="Comma-separated tags for organizing exports (e.g., 'bugfix,redis,production')",
+    )
+    parser.add_argument(
+        "--todo",
+        action="store_true",
+        help="Include todo lists from planning stages (e.g., TodoWrite, Planner tools)",
     )
 
     args = parser.parse_args()
@@ -1383,6 +1426,8 @@ Examples:
             print(f"\n📤 Extracting {len(indices)} session(s) as {args.format.upper()}...")
             if args.detailed:
                 print("📋 Including detailed tool use and system messages")
+            if args.todo:
+                print("📋 Including todo lists from planning stages")
             if args.title:
                 print(f"📝 Title: {args.title}")
             success, total = extractor.extract_multiple(
@@ -1390,6 +1435,7 @@ Examples:
                 indices,
                 format=args.format,
                 detailed=args.detailed,
+                include_todo=args.todo,
                 title=args.title,
                 description=args.description,
                 tags=tags_list,
@@ -1402,6 +1448,8 @@ Examples:
         print(f"\n📤 Extracting {limit} most recent sessions as {args.format.upper()}...")
         if args.detailed:
             print("📋 Including detailed tool use and system messages")
+        if args.todo:
+            print("📋 Including todo lists from planning stages")
         if args.title:
             print(f"📝 Title: {args.title}")
 
@@ -1411,6 +1459,7 @@ Examples:
             indices,
             format=args.format,
             detailed=args.detailed,
+            include_todo=args.todo,
             title=args.title,
             description=args.description,
             tags=tags_list,
@@ -1422,6 +1471,8 @@ Examples:
         print(f"\n📤 Extracting all {len(sessions)} sessions as {args.format.upper()}...")
         if args.detailed:
             print("📋 Including detailed tool use and system messages")
+        if args.todo:
+            print("📋 Including todo lists from planning stages")
         if args.title:
             print(f"📝 Title: {args.title}")
 
@@ -1431,6 +1482,7 @@ Examples:
             indices,
             format=args.format,
             detailed=args.detailed,
+            include_todo=args.todo,
             title=args.title,
             description=args.description,
             tags=tags_list,
