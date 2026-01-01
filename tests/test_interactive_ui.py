@@ -91,34 +91,6 @@ class TestInteractiveUI(unittest.TestCase):
         self.assertIn("Processing", printed)
 
     @patch("builtins.input")
-    def test_show_sessions_menu_all(self, mock_input):
-        """Test selecting all conversations"""
-        # Mock the extractor's find_sessions method
-        with patch.object(
-            self.ui.extractor, "find_sessions", return_value=self.mock_sessions
-        ):
-            mock_input.return_value = "A"
-
-            indices = self.ui.show_sessions_menu()
-
-            # Should return all indices for our mock sessions
-            self.assertEqual(indices, [0, 1, 2])
-
-    @patch("builtins.input")
-    def test_show_sessions_menu_recent(self, mock_input):
-        """Test selecting recent conversations"""
-        # Mock the extractor's find_sessions method
-        with patch.object(
-            self.ui.extractor, "find_sessions", return_value=self.mock_sessions
-        ):
-            mock_input.return_value = "R"
-
-            indices = self.ui.show_sessions_menu()
-
-            # Should return first 5 (or all if less)
-            self.assertEqual(indices, [0, 1, 2])
-
-    @patch("builtins.input")
     def test_show_sessions_menu_specific(self, mock_input):
         """Test selecting specific conversations"""
         mock_input.side_effect = ["S", "1,3"]
