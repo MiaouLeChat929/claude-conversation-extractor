@@ -397,7 +397,13 @@ class ClaudeConversationExtractor:
             input("\nPress Enter to continue...")
 
     def save_as_markdown(
-        self, conversation: List[Dict[str, str]], session_id: str, project_name: str = ""
+        self,
+        conversation: List[Dict[str, str]],
+        session_id: str,
+        project_name: str = "",
+        title: str = "",
+        description: str = "",
+        tags: List[str] = None,
     ) -> Optional[Path]:
         """Save conversation as clean markdown file."""
         if not conversation:
@@ -408,7 +414,17 @@ class ClaudeConversationExtractor:
         output_path = self.output_dir / filename
 
         with open(output_path, "w", encoding="utf-8") as f:
-            f.write("# Claude Conversation Log\n\n")
+            # Use custom title or default
+            f.write(f"# {title or 'Claude Conversation Log'}\n\n")
+
+            # Add description if provided
+            if description:
+                f.write(f"_{description}_\n\n")
+
+            # Add tags if provided
+            if tags:
+                f.write(f"**Tags:** {', '.join(tags)}\n\n")
+
             f.write(f"Session ID: {session_id}\n")
             f.write(f"Date: {date_str}")
             if time_str:
@@ -442,7 +458,13 @@ class ClaudeConversationExtractor:
         return output_path
 
     def save_as_json(
-        self, conversation: List[Dict[str, str]], session_id: str, project_name: str = ""
+        self,
+        conversation: List[Dict[str, str]],
+        session_id: str,
+        project_name: str = "",
+        title: str = "",
+        description: str = "",
+        tags: List[str] = None,
     ) -> Optional[Path]:
         """Save conversation as JSON file."""
         if not conversation:
@@ -460,13 +482,27 @@ class ClaudeConversationExtractor:
             "messages": conversation,
         }
 
+        # Add optional metadata
+        if title:
+            output["title"] = title
+        if description:
+            output["description"] = description
+        if tags:
+            output["tags"] = tags
+
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(output, f, indent=INDENT_NUMBER, ensure_ascii=False)
 
         return output_path
 
     def save_as_html(
-        self, conversation: List[Dict[str, str]], session_id: str, project_name: str = ""
+        self,
+        conversation: List[Dict[str, str]],
+        session_id: str,
+        project_name: str = "",
+        title: str = "",
+        description: str = "",
+        tags: List[str] = None,
     ) -> Optional[Path]:
         """Save conversation as HTML file with syntax highlighting."""
         if not conversation:
@@ -476,13 +512,15 @@ class ClaudeConversationExtractor:
         filename = self._generate_filename(project_name, date_str, session_id, "html")
         output_path = self.output_dir / filename
 
+        display_title = title or "Claude Conversation Log"
+
         # HTML template with modern styling
         html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claude Conversation - {session_id[:SESSION_ID_MAX_LENGTH]}</title>
+    <title>{display_title}</title>
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -555,12 +593,31 @@ class ClaudeConversationExtractor:
             border-radius: 3px;
             font-family: 'Courier New', monospace;
         }}
+        .description {{
+            font-style: italic;
+            color: #555;
+            margin-bottom: 10px;
+        }}
+        .tags {{
+            margin-bottom: 10px;
+        }}
+        .tag {{
+            display: inline-block;
+            background: #e1e8ed;
+            color: #1a73e8;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            margin-right: 5px;
+        }}
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Claude Conversation Log</h1>
+        <h1>{display_title}</h1>
         <div class="metadata">
+            {"<p class='description'>" + description + "</p>" if description else ""}
+            {"<p class='tags'>" + "".join(f"<span class='tag'>{tag}</span>" for tag in (tags or [])) + "</p>" if tags else ""}
             <p>Session ID: {session_id}</p>
             <p>Date: {date_str} {time_str}</p>
             <p>Messages: {len(conversation)}</p>
@@ -598,7 +655,13 @@ class ClaudeConversationExtractor:
         return output_path
 
     def save_as_pdf(
-        self, conversation: List[Dict[str, str]], session_id: str, project_name: str = ""
+        self,
+        conversation: List[Dict[str, str]],
+        session_id: str,
+        project_name: str = "",
+        title: str = "",
+        description: str = "",
+        tags: List[str] = None,
     ) -> Optional[Path]:
         """Save conversation as PDF file.
 
@@ -615,6 +678,8 @@ class ClaudeConversationExtractor:
         date_str, time_str = self._parse_timestamp(conversation)
         filename = self._generate_filename(project_name, date_str, session_id, "pdf")
         output_path = self.output_dir / filename
+
+        display_title = title or "Claude Conversation Log"
 
         # Create PDF document
         doc = SimpleDocTemplate(
@@ -634,6 +699,21 @@ class ClaudeConversationExtractor:
             fontSize=18,
             spaceAfter=12,
             textColor=HexColor("#2c3e50"),
+        )
+        description_style = ParagraphStyle(
+            "Description",
+            parent=styles["Normal"],
+            fontSize=11,
+            textColor=HexColor("#555555"),
+            fontName="Helvetica-Oblique",
+            spaceAfter=8,
+        )
+        tag_style = ParagraphStyle(
+            "Tags",
+            parent=styles["Normal"],
+            fontSize=10,
+            textColor=HexColor("#1a73e8"),
+            spaceAfter=8,
         )
         meta_style = ParagraphStyle(
             "Meta",
@@ -669,8 +749,12 @@ class ClaudeConversationExtractor:
         # Build story (content)
         story = []
 
-        # Title
-        story.append(Paragraph("Claude Conversation Log", title_style))
+        # Title and metadata
+        story.append(Paragraph(display_title, title_style))
+        if description:
+            story.append(Paragraph(description, description_style))
+        if tags:
+            story.append(Paragraph(f"Tags: {', '.join(tags)}", tag_style))
         story.append(Paragraph(f"Session ID: {session_id}", meta_style))
         story.append(Paragraph(f"Date: {date_str} {time_str}", meta_style))
         story.append(Paragraph(f"Messages: {len(conversation)}", meta_style))
@@ -710,7 +794,13 @@ class ClaudeConversationExtractor:
         return output_path
 
     def save_as_docx(
-        self, conversation: List[Dict[str, str]], session_id: str, project_name: str = ""
+        self,
+        conversation: List[Dict[str, str]],
+        session_id: str,
+        project_name: str = "",
+        title: str = "",
+        description: str = "",
+        tags: List[str] = None,
     ) -> Optional[Path]:
         """Save conversation as DOCX file.
 
@@ -728,12 +818,27 @@ class ClaudeConversationExtractor:
         filename = self._generate_filename(project_name, date_str, session_id, "docx")
         output_path = self.output_dir / filename
 
+        display_title = title or "Claude Conversation Log"
+
         # Create document
         doc = Document()
 
         # Title
-        title = doc.add_heading("Claude Conversation Log", level=0)
-        title.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+        title_heading = doc.add_heading(display_title, level=0)
+        title_heading.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+        # Description if provided
+        if description:
+            desc_para = doc.add_paragraph()
+            desc_run = desc_para.add_run(description)
+            desc_run.italic = True
+            desc_run.font.color.rgb = RGBColor(85, 85, 85)
+
+        # Tags if provided
+        if tags:
+            tags_para = doc.add_paragraph()
+            tags_run = tags_para.add_run(f"Tags: {', '.join(tags)}")
+            tags_run.font.color.rgb = RGBColor(26, 115, 232)
 
         # Metadata
         meta = doc.add_paragraph()
@@ -789,6 +894,9 @@ class ClaudeConversationExtractor:
         session_id: str,
         format: str = "markdown",
         project_name: str = "",
+        title: str = "",
+        description: str = "",
+        tags: List[str] = None,
     ) -> Optional[Path]:
         """Save conversation in the specified format.
 
@@ -797,17 +905,29 @@ class ClaudeConversationExtractor:
             session_id: Session identifier
             format: Output format ('markdown', 'json', 'html', 'pdf', 'docx')
             project_name: Project name to include in filename and content
+            title: Custom title for the document
+            description: Description/context for the conversation
+            tags: List of tags for organizing the export
         """
+        kwargs = {
+            "conversation": conversation,
+            "session_id": session_id,
+            "project_name": project_name,
+            "title": title,
+            "description": description,
+            "tags": tags,
+        }
+
         if format == "markdown":
-            return self.save_as_markdown(conversation, session_id, project_name)
+            return self.save_as_markdown(**kwargs)
         elif format == "json":
-            return self.save_as_json(conversation, session_id, project_name)
+            return self.save_as_json(**kwargs)
         elif format == "html":
-            return self.save_as_html(conversation, session_id, project_name)
+            return self.save_as_html(**kwargs)
         elif format == "pdf":
-            return self.save_as_pdf(conversation, session_id, project_name)
+            return self.save_as_pdf(**kwargs)
         elif format == "docx":
-            return self.save_as_docx(conversation, session_id, project_name)
+            return self.save_as_docx(**kwargs)
         else:
             print(f"❌ Unsupported format: {format}")
             return None
@@ -959,14 +1079,20 @@ class ClaudeConversationExtractor:
         indices: List[int],
         format: str = "markdown",
         detailed: bool = False,
+        title: str = "",
+        description: str = "",
+        tags: List[str] = None,
     ) -> Tuple[int, int]:
         """Extract multiple sessions by index.
 
         Args:
             sessions: List of session paths
             indices: Indices to extract
-            format: Output format ('markdown', 'json', 'html')
+            format: Output format ('markdown', 'json', 'html', 'pdf', 'docx')
             detailed: If True, include tool use and system messages
+            title: Custom title for exported documents
+            description: Description/context for the conversation
+            tags: List of tags for organizing exports
         """
         success = 0
         total = len(indices)
@@ -979,7 +1105,13 @@ class ClaudeConversationExtractor:
                 conversation = self.extract_conversation(session_path, detailed=detailed)
                 if conversation:
                     output_path = self.save_conversation(
-                        conversation, session_path.stem, format=format, project_name=project_name
+                        conversation,
+                        session_path.stem,
+                        format=format,
+                        project_name=project_name,
+                        title=title,
+                        description=description,
+                        tags=tags,
                     )
                     success += 1
                     msg_count = len(conversation)
@@ -1011,6 +1143,7 @@ Examples:
   %(prog)s --format pdf --extract 1  # Export as PDF (requires: pip install .[pdf])
   %(prog)s --format docx --all       # Export as DOCX (requires: pip install .[docx])
   %(prog)s --detailed --extract 1    # Include tool use & system messages
+  %(prog)s --extract 1 --title "Debugging Redis" --tags "bugfix,redis"
         """,
     )
     parser.add_argument("--list", action="store_true", help="List recent sessions")
@@ -1065,7 +1198,30 @@ Examples:
         help="Include tool use, MCP responses, and system messages in export",
     )
 
+    # Metadata arguments
+    parser.add_argument(
+        "--title",
+        type=str,
+        default="",
+        help="Custom title for the exported document (e.g., 'Debugging Redis Connection')",
+    )
+    parser.add_argument(
+        "--description",
+        type=str,
+        default="",
+        help="Description or context for the conversation (e.g., 'Fixed timeout issues in production')",
+    )
+    parser.add_argument(
+        "--tags",
+        type=str,
+        default="",
+        help="Comma-separated tags for organizing exports (e.g., 'bugfix,redis,production')",
+    )
+
     args = parser.parse_args()
+
+    # Parse tags into a list
+    tags_list = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else None
 
     # Handle interactive mode
     if args.interactive or (args.export and args.export.lower() == "logs"):
@@ -1227,8 +1383,16 @@ Examples:
             print(f"\n📤 Extracting {len(indices)} session(s) as {args.format.upper()}...")
             if args.detailed:
                 print("📋 Including detailed tool use and system messages")
+            if args.title:
+                print(f"📝 Title: {args.title}")
             success, total = extractor.extract_multiple(
-                sessions, indices, format=args.format, detailed=args.detailed
+                sessions,
+                indices,
+                format=args.format,
+                detailed=args.detailed,
+                title=args.title,
+                description=args.description,
+                tags=tags_list,
             )
             print(f"\n✅ Successfully extracted {success}/{total} sessions")
 
@@ -1238,10 +1402,18 @@ Examples:
         print(f"\n📤 Extracting {limit} most recent sessions as {args.format.upper()}...")
         if args.detailed:
             print("📋 Including detailed tool use and system messages")
+        if args.title:
+            print(f"📝 Title: {args.title}")
 
         indices = list(range(limit))
         success, total = extractor.extract_multiple(
-            sessions, indices, format=args.format, detailed=args.detailed
+            sessions,
+            indices,
+            format=args.format,
+            detailed=args.detailed,
+            title=args.title,
+            description=args.description,
+            tags=tags_list,
         )
         print(f"\n✅ Successfully extracted {success}/{total} sessions")
 
@@ -1250,10 +1422,18 @@ Examples:
         print(f"\n📤 Extracting all {len(sessions)} sessions as {args.format.upper()}...")
         if args.detailed:
             print("📋 Including detailed tool use and system messages")
+        if args.title:
+            print(f"📝 Title: {args.title}")
 
         indices = list(range(len(sessions)))
         success, total = extractor.extract_multiple(
-            sessions, indices, format=args.format, detailed=args.detailed
+            sessions,
+            indices,
+            format=args.format,
+            detailed=args.detailed,
+            title=args.title,
+            description=args.description,
+            tags=tags_list,
         )
         print(f"\n✅ Successfully extracted {success}/{total} sessions")
 

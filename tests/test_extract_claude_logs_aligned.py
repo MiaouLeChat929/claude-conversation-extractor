@@ -278,6 +278,52 @@ class TestClaudeConversationExtractor(unittest.TestCase):
         else:
             self.assertIsNone(output_path)
 
+    def test_save_as_markdown_with_metadata(self):
+        """Test saving markdown with title, description, and tags"""
+        conversation = [
+            {"role": "user", "content": "Hello", "timestamp": "2024-01-15T10:00:00Z"},
+            {"role": "assistant", "content": "Hi there!", "timestamp": "2024-01-15T10:00:01Z"},
+        ]
+
+        output_path = self.extractor.save_as_markdown(
+            conversation,
+            "test_session",
+            title="Debugging Redis Connection",
+            description="Fixed timeout issues in production",
+            tags=["bugfix", "redis", "production"],
+        )
+
+        self.assertIsNotNone(output_path)
+        self.assertTrue(output_path.exists())
+
+        content = output_path.read_text()
+        self.assertIn("# Debugging Redis Connection", content)
+        self.assertIn("_Fixed timeout issues in production_", content)
+        self.assertIn("**Tags:** bugfix, redis, production", content)
+
+    def test_save_as_json_with_metadata(self):
+        """Test saving JSON with metadata includes title, description, tags"""
+        conversation = [
+            {"role": "user", "content": "Hello", "timestamp": "2024-01-15T10:00:00Z"},
+        ]
+
+        output_path = self.extractor.save_as_json(
+            conversation,
+            "test_session",
+            title="My Title",
+            description="My description",
+            tags=["tag1", "tag2"],
+        )
+
+        self.assertIsNotNone(output_path)
+
+        with open(output_path) as f:
+            data = json.load(f)
+
+        self.assertEqual(data["title"], "My Title")
+        self.assertEqual(data["description"], "My description")
+        self.assertEqual(data["tags"], ["tag1", "tag2"])
+
     # ==========================================================================
     # Find Sessions Tests
     # ==========================================================================

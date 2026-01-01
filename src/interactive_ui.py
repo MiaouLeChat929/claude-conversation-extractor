@@ -183,15 +183,43 @@ class InteractiveUI:
 
         print(f"\r[{bar}] {current}/{total} {message}", end="", flush=True)
 
-    def extract_conversations(self, indices: List[int], output_dir: Path) -> int:
+    def get_metadata_input(self) -> tuple:
+        """Prompt user for optional metadata (title, description, tags)"""
+        print("\n" + "=" * 50)
+        print("📝 Add metadata to your export (optional)")
+        print("=" * 50)
+        print("Press Enter to skip any field.\n")
+
+        title = input("Title (e.g., 'Debugging Redis Connection'): ").strip()
+        description = input("Description (e.g., 'Fixed timeout issues'): ").strip()
+        tags_input = input("Tags (comma-separated, e.g., 'bugfix,redis'): ").strip()
+
+        tags = [t.strip() for t in tags_input.split(",") if t.strip()] if tags_input else None
+
+        return title, description, tags
+
+    def extract_conversations(
+        self,
+        indices: List[int],
+        output_dir: Path,
+        title: str = "",
+        description: str = "",
+        tags: List[str] = None,
+    ) -> int:
         """Extract selected conversations with progress display"""
         print(f"\n📤 Extracting {len(indices)} conversations...\n")
 
         # Update the extractor's output directory
         self.extractor.output_dir = output_dir
 
-        # Use the extractor's method
-        success_count, total_count = self.extractor.extract_multiple(self.sessions, indices)
+        # Use the extractor's method with metadata
+        success_count, total_count = self.extractor.extract_multiple(
+            self.sessions,
+            indices,
+            title=title,
+            description=description,
+            tags=tags,
+        )
 
         print(f"\n\n✅ Successfully extracted {success_count}/{total_count} conversations!")
         return success_count
@@ -226,8 +254,13 @@ class InteractiveUI:
             # Create output directory if needed
             output_dir.mkdir(parents=True, exist_ok=True)
 
+            # Get optional metadata
+            title, description, tags = self.get_metadata_input()
+
             # Extract conversations
-            success_count = self.extract_conversations(selected_indices, output_dir)
+            success_count = self.extract_conversations(
+                selected_indices, output_dir, title=title, description=description, tags=tags
+            )
 
             if success_count > 0:
                 print(f"\n📁 Files saved to: {output_dir}")
