@@ -170,6 +170,12 @@ claude-extract --format pdf --extract 1
 pip install claude-conversation-extractor[docx]
 claude-extract --format docx --all
 
+# Export as Jupyter Notebook (new!)
+claude-extract --format ipynb --recent 5
+
+# Export for Obsidian (with frontmatter)
+claude-extract --format markdown --obsidian --all
+
 # Install all optional export formats
 pip install claude-conversation-extractor[all]
 
@@ -186,6 +192,7 @@ claude-extract --format html --detailed --recent 5
 - **HTML** - Beautiful web-viewable format with syntax highlighting
 - **PDF** - Portable document format (optional: `pip install .[pdf]`)
 - **DOCX** - Microsoft Word format (optional: `pip install .[docx]`)
+- **Jupyter** (`.ipynb`) - Executable notebook where code blocks become cells
 
 **Detailed Mode (`--detailed`):**
 Includes complete conversation transcript with:
@@ -362,10 +369,13 @@ See [INSTALL.md](docs/user/INSTALL.md) for:
 - [x] Direct search command (`claude-search`)
 - [x] Export to PDF format (optional dependency)
 - [x] Export to DOCX format (optional dependency)
+- [x] Export to Jupyter Notebooks (.ipynb)
+- [x] Obsidian Integration (YAML frontmatter support)
+- [x] Filter conversations by project name
 
 ### 🚧 Planned Features
 - [ ] Automated daily backups of Claude conversations
-- [ ] Integration with Obsidian, Notion, Roam
+- [ ] Direct Notion/Roam API integration
 - [ ] Watch mode for auto-export of new conversations
 - [ ] Filter by date range (--after, --before flags)
 - [ ] Export statistics and analytics dashboard

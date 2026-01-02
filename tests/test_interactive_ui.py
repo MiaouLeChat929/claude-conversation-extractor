@@ -95,7 +95,15 @@ class TestInteractiveUI(unittest.TestCase):
         """Test selecting specific conversations"""
         mock_input.side_effect = ["S", "1,3"]
 
-        indices = self.ui.show_sessions_menu()
+        # Mock stat for sessions
+        mock_stat = Mock()
+        mock_stat.st_mtime = 1700000000
+        mock_stat.st_size = 1024
+
+        with patch.object(Path, "stat", return_value=mock_stat):
+            # We need to ensure find_sessions returns our mock sessions
+            with patch.object(self.ui.extractor, 'find_sessions', return_value=self.ui.sessions):
+                indices = self.ui.show_sessions_menu()
 
         # Should return selected indices (0-based)
         self.assertEqual(indices, [0, 2])
@@ -177,8 +185,15 @@ class TestMenuDisplay(unittest.TestCase):
         ui = InteractiveUI()
         ui.sessions = [Path("/test/chat.jsonl")]
 
+        # Mock stat
+        mock_stat = Mock()
+        mock_stat.st_mtime = 1700000000
+        mock_stat.st_size = 1024
+
         with patch("builtins.input", return_value="Q"):
-            ui.show_sessions_menu()
+            with patch.object(Path, "stat", return_value=mock_stat):
+                with patch.object(ui.extractor, 'find_sessions', return_value=ui.sessions):
+                    ui.show_sessions_menu()
 
         # Check that expected options are shown
         all_prints = " ".join(str(call) for call in mock_print.call_args_list)

@@ -7,7 +7,7 @@ import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 # Handle both package and direct execution imports
 try:
@@ -183,7 +183,7 @@ class InteractiveUI:
 
         print(f"\r[{bar}] {current}/{total} {message}", end="", flush=True)
 
-    def get_metadata_input(self) -> tuple:
+    def get_metadata_input(self) -> Tuple[str, str, Optional[List[str]]]:
         """Prompt user for optional metadata (title, description, tags)"""
         print("\n" + "=" * 50)
         print("📝 Add metadata to your export (optional)")
