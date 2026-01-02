@@ -12,8 +12,11 @@
 [![PyPI version](https://badge.fury.io/py/claude-conversation-extractor.svg)](https://badge.fury.io/py/claude-conversation-extractor)
 [![Downloads](https://pepy.tech/badge/claude-conversation-extractor)](https://pepy.tech/project/claude-conversation-extractor)
 [![GitHub stars](https://img.shields.io/github/stars/ZeroSumQuant/claude-conversation-extractor?style=social)](https://github.com/ZeroSumQuant/claude-conversation-extractor)
-[![Export Claude Code](https://img.shields.io/badge/Export-Claude%20Code%20Conversations-blue)](https://github.com/ZeroSumQuant/claude-conversation-extractor)
-[![Claude Code Logs](https://img.shields.io/badge/Backup-Claude%20Code%20Logs-green)](https://github.com/ZeroSumQuant/claude-conversation-extractor)
+[![Windows](https://img.shields.io/badge/Windows-supported-0078D6?logo=windows)](https://github.com/ZeroSumQuant/claude-conversation-extractor)
+[![macOS](https://img.shields.io/badge/macOS-supported-000000?logo=apple)](https://github.com/ZeroSumQuant/claude-conversation-extractor)
+[![Linux](https://img.shields.io/badge/Linux-supported-FCC624?logo=linux&logoColor=black)](https://github.com/ZeroSumQuant/claude-conversation-extractor)
+[![Obsidian](https://img.shields.io/badge/Obsidian-compatible-7C3AED?logo=obsidian)](https://obsidian.md/)
+[![Jupyter](https://img.shields.io/badge/Jupyter-export-F37626?logo=jupyter)](https://jupyter.org/)
 
 **Export Claude Code conversations with the #1 extraction tool.** Claude Code stores chats in ~/.claude/projects as JSONL files with no export button - this tool solves that.
 
@@ -48,8 +51,13 @@ This is the **ONLY tool that exports Claude Code conversations**:
 - **📦 Bulk Export**: Extract all Claude Code conversations at once
 - **🎯 Zero Config**: Just run `claude-extract` - we find everything automatically
 - **🚀 No Dependencies**: Pure Python - no external packages required
-- **🖥️ Cross-Platform**: Export Claude Code logs on any OS
-- **📊 Tested**: Core extraction functionality tested and reliable
+- **🖥️ Cross-Platform**: Full support for Windows, macOS, and Linux
+- **📊 Tested**: 58 tests with CI on all platforms
+- **🏷️ Metadata Support**: Add custom titles, descriptions, and tags to exports
+- **📋 Todo Extraction**: Capture Claude's planning todo lists with `--todo`
+- **📁 Project Filtering**: Filter sessions by project name with `--project`
+- **💎 Obsidian Ready**: Export with YAML frontmatter using `--obsidian`
+- **📓 Jupyter Export**: Convert conversations to executable notebooks
 
 ## 📦 Install Claude Conversation Extractor
 
@@ -186,13 +194,42 @@ claude-extract --detailed --extract 1
 claude-extract --format html --detailed --recent 5
 ```
 
+### 🏷️ Organize Exports with Metadata
+
+Add context to your exported conversations:
+
+```bash
+# Add a custom title to your export
+claude-extract --extract 1 --title "Debugging Redis Connection"
+
+# Add title and description
+claude-extract --extract 1 --title "API Integration" --description "Fixed OAuth flow issues"
+
+# Add searchable tags
+claude-extract --extract 1 --tags "bugfix,redis,production"
+
+# Combine all metadata options
+claude-extract --extract 1 \
+  --title "Feature Implementation" \
+  --description "Added user authentication" \
+  --tags "feature,auth,security"
+
+# Include Claude's planning todo lists
+claude-extract --extract 1 --todo
+
+# Filter by project name
+claude-extract --list --project "my-webapp"
+claude-extract --all --project "api-server"
+```
+
 **Supported Formats:**
 - **Markdown** (default) - Clean, readable text format
+- **Markdown + Obsidian** - With YAML frontmatter for Obsidian vaults (`--obsidian`)
 - **JSON** - Structured data for analysis and processing
 - **HTML** - Beautiful web-viewable format with syntax highlighting
 - **PDF** - Portable document format (optional: `pip install .[pdf]`)
 - **DOCX** - Microsoft Word format (optional: `pip install .[docx]`)
-- **Jupyter** (`.ipynb`) - Executable notebook where code blocks become cells
+- **Jupyter** (`.ipynb`) - Interactive notebook format for data science workflows
 
 **Detailed Mode (`--detailed`):**
 Includes complete conversation transcript with:
@@ -265,13 +302,32 @@ Run `claude-extract --all` to export every conversation at once, or use the inte
 No, this tool specifically exports Claude Code (desktop app) conversations. Claude.ai has its own export feature in settings.
 
 ### Can I convert Claude JSONL to other formats?
-Yes! Version 1.2.0 supports multiple export formats:
-- **Markdown** - Default clean text format
+Yes! Version 1.2.0+ supports multiple export formats:
+- **Markdown** - Default clean text format (add `--obsidian` for Obsidian vaults)
 - **JSON** - Structured data with timestamps and metadata
 - **HTML** - Beautiful web-viewable format with modern styling
 - **PDF** - Portable document format (requires: `pip install claude-conversation-extractor[pdf]`)
 - **DOCX** - Microsoft Word format (requires: `pip install claude-conversation-extractor[docx]`)
-Use `--format json`, `--format html`, `--format pdf`, or `--format docx` when extracting.
+- **Jupyter** - Interactive notebooks (requires: `--format ipynb`)
+Use `--format json`, `--format html`, `--format pdf`, `--format docx`, or `--format ipynb` when extracting.
+
+### Can I add metadata to my exports?
+Yes! Use `--title`, `--description`, and `--tags` to organize your exports:
+```bash
+claude-extract --extract 1 --title "Bug Fix" --tags "bugfix,urgent"
+```
+
+### Does it work with Obsidian?
+Yes! Use `--obsidian` to add YAML frontmatter compatible with Obsidian:
+```bash
+claude-extract --format markdown --obsidian --all
+```
+
+### Can I see Claude's todo lists and planning?
+Yes! Use `--todo` to include TodoWrite tool outputs in your exports:
+```bash
+claude-extract --extract 1 --todo
+```
 
 ### Is this tool official?
 No, this is an independent open-source tool. It reads the local Claude Code files on your computer - no API or internet required.
@@ -286,6 +342,10 @@ No, this is an independent open-source tool. It reads the local Claude Code file
 | Clean formatting | ✅ Perfect Markdown | ❌ Terminal artifacts | ❌ N/A |
 | Zero configuration | ✅ Auto-detects | ❌ Manual process | ❌ N/A |
 | Cross-platform | ✅ Win/Mac/Linux | ✅ Manual works | ❌ N/A |
+| Multiple formats | ✅ MD/JSON/HTML/PDF/DOCX/Jupyter | ❌ Text only | ❌ N/A |
+| Obsidian integration | ✅ YAML frontmatter | ❌ Manual | ❌ N/A |
+| Metadata & tags | ✅ Title/desc/tags | ❌ None | ❌ N/A |
+| Todo extraction | ✅ Planning stages | ❌ None | ❌ N/A |
 
 ## 🔧 Technical Details
 
@@ -359,7 +419,7 @@ See [INSTALL.md](docs/user/INSTALL.md) for:
 
 ## 📈 Roadmap for Claude Code Export Tool
 
-### ✅ Completed in v1.2.0
+### ✅ Completed
 - [x] Export Claude Code conversations to Markdown
 - [x] CLI search for Claude chat history
 - [x] Bulk export all Claude sessions
@@ -371,7 +431,13 @@ See [INSTALL.md](docs/user/INSTALL.md) for:
 - [x] Export to DOCX format (optional dependency)
 - [x] Export to Jupyter Notebooks (.ipynb)
 - [x] Obsidian Integration (YAML frontmatter support)
-- [x] Filter conversations by project name
+- [x] Filter conversations by project name (`--project`)
+- [x] Metadata support (`--title`, `--description`, `--tags`)
+- [x] Todo list extraction (`--todo`)
+- [x] Full Windows support with UTF-8 encoding
+- [x] VS Code extension for easy access
+- [x] Proper logging throughout codebase
+- [x] Comprehensive type hints
 
 ### 🚧 Planned Features
 - [ ] Automated daily backups of Claude conversations

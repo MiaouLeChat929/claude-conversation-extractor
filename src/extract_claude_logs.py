@@ -128,6 +128,13 @@ class ClaudeConversationExtractor:
         logger.info(f"📁 Saving logs to: {self.output_dir}")
         logger.info(f"🔍 Searching for conversations in: {self.claude_dir}")
 
+    def _safe_mtime(self, path: Path) -> float:
+        """Safely get file modification time, returning 0 if file is inaccessible."""
+        try:
+            return path.stat().st_mtime
+        except OSError:
+            return 0  # Sort inaccessible files to end
+
     def find_sessions(self, project_path: Optional[str] = None) -> List[Path]:
         """Find all JSONL session files, sorted by most recent first."""
         if project_path:
@@ -139,7 +146,7 @@ class ClaudeConversationExtractor:
         if search_dir.exists():
             for jsonl_file in search_dir.rglob("*.jsonl"):
                 sessions.append(jsonl_file)
-        return sorted(sessions, key=lambda x: x.stat().st_mtime, reverse=True)
+        return sorted(sessions, key=self._safe_mtime, reverse=True)
 
     def extract_conversation(
         self, jsonl_path: Path, detailed: bool = False, include_todo: bool = False
@@ -1243,30 +1250,34 @@ class ClaudeConversationExtractor:
         # Show all sessions if no limit specified
         sessions_to_show = sessions[:limit] if limit else sessions
         for i, session in enumerate(sessions_to_show, 1):
-            # Clean up project name (remove hyphens, make readable)
-            project = session.parent.name.replace("-", " ").strip()
-            if project.startswith("Users"):
-                project = (
-                    "~/" + "/".join(project.split()[2:]) if len(project.split()) > 2 else "Home"
-                )
+            try:
+                # Clean up project name (remove hyphens, make readable)
+                project = session.parent.name.replace("-", " ").strip()
+                if project.startswith("Users"):
+                    project = (
+                        "~/" + "/".join(project.split()[2:]) if len(project.split()) > 2 else "Home"
+                    )
 
-            session_id = session.stem
-            modified = datetime.fromtimestamp(session.stat().st_mtime)
+                session_id = session.stem
+                stat_info = session.stat()
+                modified = datetime.fromtimestamp(stat_info.st_mtime)
 
-            # Get file size
-            size = session.stat().st_size
-            size_kb = size / 1024
+                # Get file size
+                size_kb = stat_info.st_size / 1024
 
-            # Get preview and message count
-            preview, msg_count = self.get_conversation_preview(session)
+                # Get preview and message count
+                preview, msg_count = self.get_conversation_preview(session)
 
-            # Print formatted info
-            logger.info(f"\n{i}. 📁 {project}")
-            logger.info(f"   📄 Session: {session_id[:SESSION_ID_MAX_LENGTH]}...")
-            logger.info(f"   📅 Modified: {modified.strftime('%Y-%m-%d %H:%M')}")
-            logger.info(f"   💬 Messages: {msg_count}")
-            logger.info(f"   💾 Size: {size_kb:.1f} KB")
-            logger.info(f'   📝 Preview: "{preview}..."')
+                # Print formatted info
+                logger.info(f"\n{i}. 📁 {project}")
+                logger.info(f"   📄 Session: {session_id[:SESSION_ID_MAX_LENGTH]}...")
+                logger.info(f"   📅 Modified: {modified.strftime('%Y-%m-%d %H:%M')}")
+                logger.info(f"   💬 Messages: {msg_count}")
+                logger.info(f"   💾 Size: {size_kb:.1f} KB")
+                logger.info(f'   📝 Preview: "{preview}..."')
+            except OSError:
+                # Skip files that became inaccessible
+                continue
 
         logger.info("\n" + "=" * LIST_SEPARATOR_WIDTH)
         return sessions[:limit]
@@ -1605,30 +1616,34 @@ Examples:
         logger.info("=" * LIST_SEPARATOR_WIDTH)
 
         for i, session in enumerate(sessions_to_display, 1):
-            # Clean up project name (remove hyphens, make readable)
-            project = session.parent.name.replace("-", " ").strip()
-            if project.startswith("Users"):
-                project = (
-                    "~/" + "/".join(project.split()[2:]) if len(project.split()) > 2 else "Home"
-                )
+            try:
+                # Clean up project name (remove hyphens, make readable)
+                project = session.parent.name.replace("-", " ").strip()
+                if project.startswith("Users"):
+                    project = (
+                        "~/" + "/".join(project.split()[2:]) if len(project.split()) > 2 else "Home"
+                    )
 
-            session_id = session.stem
-            modified = datetime.fromtimestamp(session.stat().st_mtime)
+                session_id = session.stem
+                stat_info = session.stat()
+                modified = datetime.fromtimestamp(stat_info.st_mtime)
 
-            # Get file size
-            size = session.stat().st_size
-            size_kb = size / 1024
+                # Get file size
+                size_kb = stat_info.st_size / 1024
 
-            # Get preview and message count
-            preview, msg_count = extractor.get_conversation_preview(session)
+                # Get preview and message count
+                preview, msg_count = extractor.get_conversation_preview(session)
 
-            # Print formatted info
-            logger.info(f"\n{i}. 📁 {project}")
-            logger.info(f"   📄 Session: {session_id[:SESSION_ID_MAX_LENGTH]}...")
-            logger.info(f"   📅 Modified: {modified.strftime('%Y-%m-%d %H:%M')}")
-            logger.info(f"   💬 Messages: {msg_count}")
-            logger.info(f"   💾 Size: {size_kb:.1f} KB")
-            logger.info(f'   📝 Preview: "{preview}..."')
+                # Print formatted info
+                logger.info(f"\n{i}. 📁 {project}")
+                logger.info(f"   📄 Session: {session_id[:SESSION_ID_MAX_LENGTH]}...")
+                logger.info(f"   📅 Modified: {modified.strftime('%Y-%m-%d %H:%M')}")
+                logger.info(f"   💬 Messages: {msg_count}")
+                logger.info(f"   💾 Size: {size_kb:.1f} KB")
+                logger.info(f'   📝 Preview: "{preview}..."')
+            except OSError:
+                # Skip files that became inaccessible
+                continue
 
         logger.info("\n" + "=" * LIST_SEPARATOR_WIDTH)
 
