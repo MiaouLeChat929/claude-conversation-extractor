@@ -773,6 +773,18 @@ Examples:
     parser.add_argument(
         "--case-sensitive", action="store_true", help="Make search case-sensitive"
     )
+    parser.add_argument(
+        "--non-interactive", "-y", action="store_true",
+        help="Skip all prompts, auto-confirm extractions"
+    )
+    parser.add_argument(
+        "--extract-matching", action="store_true",
+        help="After search, auto-extract all matching sessions (implies --non-interactive)"
+    )
+    parser.add_argument(
+        "--json-output", action="store_true",
+        help="Output machine-readable JSON for search results and extraction status"
+    )
     
     # Export format arguments
     parser.add_argument(
@@ -860,6 +872,28 @@ Examples:
                 results_by_file[result.file_path] = []
             results_by_file[result.file_path].append(result)
 
+        # JSON output mode for search results
+        if args.json_output and not (args.extract_matching or args.non_interactive):
+            import json as json_module
+            search_results_json = []
+            for file_path, file_results in results_by_file.items():
+                search_results_json.append({
+                    "session_id": file_path.stem,
+                    "project": file_path.parent.name,
+                    "match_count": len(file_results),
+                    "matches": [
+                        {
+                            "speaker": r.speaker,
+                            "content": r.matched_content[:200],
+                            "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+                            "relevance": r.relevance_score
+                        }
+                        for r in file_results[:3]  # First 3 matches per session
+                    ]
+                })
+            print(json_module.dumps({"status": "success", "query": query, "matches": search_results_json}, indent=2))
+            return
+
         # Store file paths for potential viewing
         file_paths_list = []
         for file_path, file_results in results_by_file.items():
@@ -869,19 +903,46 @@ Examples:
             first = file_results[0]
             print(f"   {first.speaker}: {first.matched_content[:100]}...")
 
-        # Offer to view conversations
+        # Auto-extract matching sessions if --extract-matching or --non-interactive
+        if file_paths_list and (args.extract_matching or args.non_interactive):
+            print(f"\n📤 Auto-extracting {len(file_paths_list)} matching sessions...")
+            import json as json_module
+            extracted = []
+            for i, path in enumerate(file_paths_list, 1):
+                conversation = extractor.extract_conversation(path, detailed=args.detailed)
+                if conversation:
+                    session_id = path.stem
+                    if args.format == "json":
+                        output = extractor.save_as_json(conversation, session_id)
+                    elif args.format == "html":
+                        output = extractor.save_as_html(conversation, session_id)
+                    else:
+                        output = extractor.save_as_markdown(conversation, session_id)
+                    print(f"✅ {i}/{len(file_paths_list)}: {output.name}")
+                    extracted.append({
+                        "session_id": session_id,
+                        "output_file": str(output),
+                        "message_count": len(conversation)
+                    })
+                else:
+                    print(f"⏭️  Skipped session {i} (no conversation)")
+            if args.json_output:
+                print(json_module.dumps({"status": "success", "extracted": extracted}, indent=2))
+            return
+
+        # Interactive: offer to view conversations
         if file_paths_list:
             print("\n" + "=" * 60)
             try:
                 view_choice = input("\nView a conversation? Enter number (1-{}) or press Enter to skip: ".format(
                     len(file_paths_list))).strip()
-                
+
                 if view_choice.isdigit():
                     view_num = int(view_choice)
                     if 1 <= view_num <= len(file_paths_list):
                         selected_path = file_paths_list[view_num - 1]
                         extractor.display_conversation(selected_path, detailed=args.detailed)
-                        
+
                         # Offer to extract after viewing
                         extract_choice = input("\n📤 Extract this conversation? (y/N): ").strip().lower()
                         if extract_choice == 'y':
@@ -897,7 +958,7 @@ Examples:
                                 print(f"✅ Saved: {output.name}")
             except (EOFError, KeyboardInterrupt):
                 print("\n👋 Cancelled")
-        
+
         return
 
     # Default action is to list sessions

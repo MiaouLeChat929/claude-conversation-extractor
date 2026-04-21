@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "claude-conversation-extractor"
-version = "1.1.2"
-description = "Export Claude Code conversations from ~/.claude/projects. Extract, search, and backup Claude chat history to markdown files."
+name = "claude-extract-ni"
+version = "1.2.0"
+description = "Non-interactive CLI for extracting, searching, and backing up Claude Code conversations. Optimized for Claude Code agent automation."
 readme = "README.md"
 authors = [
     {name = "Dustin Kirby"}
@@ -43,16 +43,15 @@ requires-python = ">=3.8"
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/ZeroSumQuant/claude-conversation-extractor"
-Documentation = "https://github.com/ZeroSumQuant/claude-conversation-extractor#readme"
-Repository = "https://github.com/ZeroSumQuant/claude-conversation-extractor"
-Issues = "https://github.com/ZeroSumQuant/claude-conversation-extractor/issues"
+Homepage = "https://github.com/MiaouLeChat929/claude-conversation-extractor"
+Documentation = "https://github.com/MiaouLeChat929/claude-conversation-extractor#readme"
+Repository = "https://github.com/MiaouLeChat929/claude-conversation-extractor"
+Issues = "https://github.com/MiaouLeChat929/claude-conversation-extractor/issues"
 
 [project.scripts]
-claude-extract = "extract_claude_logs:launch_interactive"
-claude-logs = "extract_claude_logs:launch_interactive"
-claude-start = "extract_claude_logs:launch_interactive"
-claude-search = "search_cli:main"
+claude-extract = "extract_claude_logs:main"
+claude-extract-ni = "extract_claude_logs:main"
+claude-search-ni = "search_cli:main"
 
 [tool.setuptools]
 py-modules = ["extract_claude_logs", "interactive_ui", "search_conversations", "realtime_search", "search_cli"]
