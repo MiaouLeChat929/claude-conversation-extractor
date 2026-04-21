@@ -188,102 +188,6 @@ class ClaudeConversationExtractor:
         else:
             return str(content)
 
-    def display_conversation(self, jsonl_path: Path, detailed: bool = False) -> None:
-        """Display a conversation in the terminal with pagination.
-        
-        Args:
-            jsonl_path: Path to the JSONL file
-            detailed: If True, include tool use and system messages
-        """
-        try:
-            # Extract conversation
-            messages = self.extract_conversation(jsonl_path, detailed=detailed)
-            
-            if not messages:
-                print("❌ No messages found in conversation")
-                return
-            
-            # Get session info
-            session_id = jsonl_path.stem
-            
-            # Clear screen and show header
-            print("\033[2J\033[H", end="")  # Clear screen
-            print("=" * 60)
-            print(f"📄 Viewing: {jsonl_path.parent.name}")
-            print(f"Session: {session_id[:8]}...")
-            
-            # Get timestamp from first message
-            first_timestamp = messages[0].get("timestamp", "")
-            if first_timestamp:
-                try:
-                    dt = datetime.fromisoformat(first_timestamp.replace("Z", "+00:00"))
-                    print(f"Date: {dt.strftime('%Y-%m-%d %H:%M:%S')}")
-                except Exception:
-                    pass
-            
-            print("=" * 60)
-            print("↑↓ to scroll • Q to quit • Enter to continue\n")
-            
-            # Display messages with pagination
-            lines_shown = 8  # Header lines
-            lines_per_page = 30
-            
-            for i, msg in enumerate(messages):
-                role = msg["role"]
-                content = msg["content"]
-                
-                # Format role display
-                if role == "user" or role == "human":
-                    print(f"\n{'─' * 40}")
-                    print(f"👤 HUMAN:")
-                    print(f"{'─' * 40}")
-                elif role == "assistant":
-                    print(f"\n{'─' * 40}")
-                    print(f"🤖 CLAUDE:")
-                    print(f"{'─' * 40}")
-                elif role == "tool_use":
-                    print(f"\n🔧 TOOL USE:")
-                elif role == "tool_result":
-                    print(f"\n📤 TOOL RESULT:")
-                elif role == "system":
-                    print(f"\nℹ️ SYSTEM:")
-                else:
-                    print(f"\n{role.upper()}:")
-                
-                # Display content (limit very long messages)
-                lines = content.split('\n')
-                max_lines_per_msg = 50
-                
-                for line_idx, line in enumerate(lines[:max_lines_per_msg]):
-                    # Wrap very long lines
-                    if len(line) > 100:
-                        line = line[:97] + "..."
-                    print(line)
-                    lines_shown += 1
-                    
-                    # Check if we need to paginate
-                    if lines_shown >= lines_per_page:
-                        response = input("\n[Enter] Continue • [Q] Quit: ").strip().upper()
-                        if response == "Q":
-                            print("\n👋 Stopped viewing")
-                            return
-                        # Clear screen for next page
-                        print("\033[2J\033[H", end="")
-                        lines_shown = 0
-                
-                if len(lines) > max_lines_per_msg:
-                    print(f"... [{len(lines) - max_lines_per_msg} more lines truncated]")
-                    lines_shown += 1
-            
-            print("\n" + "=" * 60)
-            print("📄 End of conversation")
-            print("=" * 60)
-            input("\nPress Enter to continue...")
-            
-        except Exception as e:
-            print(f"❌ Error displaying conversation: {e}")
-            input("\nPress Enter to continue...")
-
     def save_as_markdown(
         self, conversation: List[Dict[str, str]], session_id: str
     ) -> Optional[Path]:
@@ -737,19 +641,6 @@ Examples:
     parser.add_argument(
         "--limit", type=int, help="Limit for --list command (default: show all)", default=None
     )
-    parser.add_argument(
-        "--interactive",
-        "-i",
-        "--start",
-        "-s",
-        action="store_true",
-        help="Launch interactive UI for easy extraction",
-    )
-    parser.add_argument(
-        "--export",
-        type=str,
-        help="Export mode: 'logs' for interactive UI",
-    )
 
     # Search arguments
     parser.add_argument(
@@ -773,19 +664,7 @@ Examples:
     parser.add_argument(
         "--case-sensitive", action="store_true", help="Make search case-sensitive"
     )
-    parser.add_argument(
-        "--non-interactive", "-y", action="store_true",
-        help="Skip all prompts, auto-confirm extractions"
-    )
-    parser.add_argument(
-        "--extract-matching", action="store_true",
-        help="After search, auto-extract all matching sessions (implies --non-interactive)"
-    )
-    parser.add_argument(
-        "--json-output", action="store_true",
-        help="Output machine-readable JSON for search results and extraction status"
-    )
-    
+
     # Export format arguments
     parser.add_argument(
         "--format",
@@ -801,17 +680,10 @@ Examples:
 
     args = parser.parse_args()
 
-    # Handle interactive mode
-    if args.interactive or (args.export and args.export.lower() == "logs"):
-        from interactive_ui import main as interactive_main
-
-        interactive_main()
-        return
-
     # Initialize extractor with optional output directory
     extractor = ClaudeConversationExtractor(args.output)
 
-    # Handle search mode
+    # Handle search mode — always auto-extracts matching sessions
     if args.search or args.search_regex:
         from datetime import datetime
 
@@ -863,105 +735,36 @@ Examples:
             print("❌ No matches found.")
             return
 
-        print(f"\n✅ Found {len(results)} matches across conversations:")
-
-        # Group and display results
+        # Group results by file
         results_by_file = {}
         for result in results:
             if result.file_path not in results_by_file:
                 results_by_file[result.file_path] = []
             results_by_file[result.file_path].append(result)
 
-        # JSON output mode for search results
-        if args.json_output and not (args.extract_matching or args.non_interactive):
-            import json as json_module
-            search_results_json = []
-            for file_path, file_results in results_by_file.items():
-                search_results_json.append({
-                    "session_id": file_path.stem,
-                    "project": file_path.parent.name,
-                    "match_count": len(file_results),
-                    "matches": [
-                        {
-                            "speaker": r.speaker,
-                            "content": r.matched_content[:200],
-                            "timestamp": r.timestamp.isoformat() if r.timestamp else None,
-                            "relevance": r.relevance_score
-                        }
-                        for r in file_results[:3]  # First 3 matches per session
-                    ]
-                })
-            print(json_module.dumps({"status": "success", "query": query, "matches": search_results_json}, indent=2))
-            return
+        print(f"\n✅ Found {len(results)} matches across {len(results_by_file)} conversations")
 
-        # Store file paths for potential viewing
-        file_paths_list = []
-        for file_path, file_results in results_by_file.items():
-            file_paths_list.append(file_path)
-            print(f"\n{len(file_paths_list)}. 📄 {file_path.parent.name} ({len(file_results)} matches)")
-            # Show first match preview
-            first = file_results[0]
-            print(f"   {first.speaker}: {first.matched_content[:100]}...")
+        # Auto-extract all matching sessions
+        file_paths_list = list(results_by_file.keys())
+        print(f"\n📤 Extracting {len(file_paths_list)} matching sessions...")
 
-        # Auto-extract matching sessions if --extract-matching or --non-interactive
-        if file_paths_list and (args.extract_matching or args.non_interactive):
-            print(f"\n📤 Auto-extracting {len(file_paths_list)} matching sessions...")
-            import json as json_module
-            extracted = []
-            for i, path in enumerate(file_paths_list, 1):
-                conversation = extractor.extract_conversation(path, detailed=args.detailed)
-                if conversation:
-                    session_id = path.stem
-                    if args.format == "json":
-                        output = extractor.save_as_json(conversation, session_id)
-                    elif args.format == "html":
-                        output = extractor.save_as_html(conversation, session_id)
-                    else:
-                        output = extractor.save_as_markdown(conversation, session_id)
-                    print(f"✅ {i}/{len(file_paths_list)}: {output.name}")
-                    extracted.append({
-                        "session_id": session_id,
-                        "output_file": str(output),
-                        "message_count": len(conversation)
-                    })
+        for i, path in enumerate(file_paths_list, 1):
+            conversation = extractor.extract_conversation(path, detailed=args.detailed)
+            if conversation:
+                session_id = path.stem
+                if args.format == "json":
+                    output = extractor.save_as_json(conversation, session_id)
+                elif args.format == "html":
+                    output = extractor.save_as_html(conversation, session_id)
                 else:
-                    print(f"⏭️  Skipped session {i} (no conversation)")
-            if args.json_output:
-                print(json_module.dumps({"status": "success", "extracted": extracted}, indent=2))
-            return
-
-        # Interactive: offer to view conversations
-        if file_paths_list:
-            print("\n" + "=" * 60)
-            try:
-                view_choice = input("\nView a conversation? Enter number (1-{}) or press Enter to skip: ".format(
-                    len(file_paths_list))).strip()
-
-                if view_choice.isdigit():
-                    view_num = int(view_choice)
-                    if 1 <= view_num <= len(file_paths_list):
-                        selected_path = file_paths_list[view_num - 1]
-                        extractor.display_conversation(selected_path, detailed=args.detailed)
-
-                        # Offer to extract after viewing
-                        extract_choice = input("\n📤 Extract this conversation? (y/N): ").strip().lower()
-                        if extract_choice == 'y':
-                            conversation = extractor.extract_conversation(selected_path, detailed=args.detailed)
-                            if conversation:
-                                session_id = selected_path.stem
-                                if args.format == "json":
-                                    output = extractor.save_as_json(conversation, session_id)
-                                elif args.format == "html":
-                                    output = extractor.save_as_html(conversation, session_id)
-                                else:
-                                    output = extractor.save_as_markdown(conversation, session_id)
-                                print(f"✅ Saved: {output.name}")
-            except (EOFError, KeyboardInterrupt):
-                print("\n👋 Cancelled")
+                    output = extractor.save_as_markdown(conversation, session_id)
+                print(f"✅ {i}/{len(file_paths_list)}: {output.name}")
+            else:
+                print(f"⏭️  Skipped session {i} (no conversation)")
 
         return
 
-    # Default action is to list sessions
+    # List sessions
     if args.list or (
         not args.extract
         and not args.all
@@ -970,7 +773,6 @@ Examples:
         and not args.search_regex
     ):
         sessions = extractor.list_recent_sessions(args.limit)
-
         if sessions and not args.list:
             print("\nTo extract conversations:")
             print("  claude-extract --extract <number>      # Extract specific session")
@@ -979,12 +781,10 @@ Examples:
 
     elif args.extract:
         sessions = extractor.find_sessions()
-
-        # Parse comma-separated indices
         indices = []
         for num in args.extract.split(","):
             try:
-                idx = int(num.strip()) - 1  # Convert to 0-based index
+                idx = int(num.strip()) - 1
                 indices.append(idx)
             except ValueError:
                 print(f"❌ Invalid session number: {num}")
@@ -992,8 +792,6 @@ Examples:
 
         if indices:
             print(f"\n📤 Extracting {len(indices)} session(s) as {args.format.upper()}...")
-            if args.detailed:
-                print("📋 Including detailed tool use and system messages")
             success, total = extractor.extract_multiple(
                 sessions, indices, format=args.format, detailed=args.detailed
             )
@@ -1003,9 +801,6 @@ Examples:
         sessions = extractor.find_sessions()
         limit = min(args.recent, len(sessions))
         print(f"\n📤 Extracting {limit} most recent sessions as {args.format.upper()}...")
-        if args.detailed:
-            print("📋 Including detailed tool use and system messages")
-
         indices = list(range(limit))
         success, total = extractor.extract_multiple(
             sessions, indices, format=args.format, detailed=args.detailed
@@ -1015,65 +810,11 @@ Examples:
     elif args.all:
         sessions = extractor.find_sessions()
         print(f"\n📤 Extracting all {len(sessions)} sessions as {args.format.upper()}...")
-        if args.detailed:
-            print("📋 Including detailed tool use and system messages")
-
         indices = list(range(len(sessions)))
         success, total = extractor.extract_multiple(
             sessions, indices, format=args.format, detailed=args.detailed
         )
         print(f"\n✅ Successfully extracted {success}/{total} sessions")
-
-
-def launch_interactive():
-    """Launch the interactive UI directly, or handle search if specified."""
-    import sys
-    
-    # If no arguments provided, launch interactive UI
-    if len(sys.argv) == 1:
-        try:
-            from .interactive_ui import main as interactive_main
-        except ImportError:
-            from interactive_ui import main as interactive_main
-        interactive_main()
-    # Check if 'search' was passed as an argument
-    elif len(sys.argv) > 1 and sys.argv[1] == 'search':
-        # Launch real-time search with viewing capability
-        try:
-            from .realtime_search import RealTimeSearch, create_smart_searcher
-            from .search_conversations import ConversationSearcher
-        except ImportError:
-            from realtime_search import RealTimeSearch, create_smart_searcher
-            from search_conversations import ConversationSearcher
-        
-        # Initialize components
-        extractor = ClaudeConversationExtractor()
-        searcher = ConversationSearcher()
-        smart_searcher = create_smart_searcher(searcher)
-        
-        # Run search
-        rts = RealTimeSearch(smart_searcher, extractor)
-        selected_file = rts.run()
-        
-        if selected_file:
-            # View the selected conversation
-            extractor.display_conversation(selected_file)
-            
-            # Offer to extract
-            try:
-                extract_choice = input("\n📤 Extract this conversation? (y/N): ").strip().lower()
-                if extract_choice == 'y':
-                    conversation = extractor.extract_conversation(selected_file)
-                    if conversation:
-                        session_id = selected_file.stem
-                        output = extractor.save_as_markdown(conversation, session_id)
-                        print(f"✅ Saved: {output.name}")
-            except (EOFError, KeyboardInterrupt):
-                print("\n👋 Cancelled")
-    else:
-        # If other arguments are provided, run the normal CLI
-        main()
-
 
 if __name__ == "__main__":
     main()

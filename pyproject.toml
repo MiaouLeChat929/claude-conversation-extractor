@@ -50,11 +50,10 @@ Issues = "https://github.com/MiaouLeChat929/claude-conversation-extractor/issues
 
 [project.scripts]
 claude-extract = "extract_claude_logs:main"
-claude-extract-ni = "extract_claude_logs:main"
-claude-search-ni = "search_cli:main"
+claude-search = "search_cli:main"
 
 [tool.setuptools]
-py-modules = ["extract_claude_logs", "interactive_ui", "search_conversations", "realtime_search", "search_cli"]
+py-modules = ["extract_claude_logs", "search_conversations", "search_cli"]
 
 [tool.setuptools.package-dir]
 "" = "src"
